@@ -1,6 +1,13 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
-const courtArt = new Image(); courtArt.src = 'assets/court-rooftop.png';
+const levelBackgroundPaths = [
+  'assets/levels/level-01-jungle.png', 'assets/levels/level-02-pyramids.png',
+  'assets/levels/level-03-arctic.png', 'assets/levels/level-04-volcano.png',
+  'assets/levels/level-05-underwater.png', 'assets/levels/level-06-cybercity.png',
+  'assets/levels/level-07-moon.png', 'assets/levels/level-08-castle.png',
+  'assets/levels/level-09-sky-islands.png', 'assets/levels/level-10-cosmos.png'
+];
+const levelBackgrounds = levelBackgroundPaths.map(src=>{const image=new Image();image.src=src;return image});
 const ballArt = new Image(); ballArt.src = 'assets/ball-premium.png';
 const scoreboardArt = new Image(); scoreboardArt.src = 'assets/ui/scoreboard-panel-v2.png';
 const swishAudio = new Audio('assets/audio/net-swish-v3.mp3'); swishAudio.preload = 'auto';
@@ -203,6 +210,7 @@ function update(dt){
 }
 
 function court(){
+  const courtArt=levelBackgrounds[Math.max(0,Math.min(9,state.level-1))];
   if (courtArt.complete && courtArt.naturalWidth) ctx.drawImage(courtArt, 0, 0, W, H);
   else { const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#061b37');g.addColorStop(1,'#8f431e');ctx.fillStyle=g;ctx.fillRect(0,0,W,H); }
   const shade=ctx.createLinearGradient(0,0,0,H);shade.addColorStop(0,'rgba(2,8,18,.12)');shade.addColorStop(.45,'rgba(2,8,18,.02)');shade.addColorStop(1,'rgba(2,8,18,.35)');ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
