@@ -74,8 +74,8 @@ body {
 }
 
 .game-screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(1,7,15,.12), rgba(1,7,15,.2) 45%, rgba(1,7,15,.78)); }
-.menu-screen { justify-content: space-between; padding: 12% 9% 10%; background-image: url('../assets/menu/main-menu.png'); }
-.settings-screen { justify-content: center; padding: 10%; background-image: url('../assets/menu/settings-menu.png'); }
+.menu-screen { justify-content: space-between; padding: 12% 9% 10%; background-image: url('../assets/menu/main-menu.webp'); }
+.settings-screen { justify-content: center; padding: 10%; background-image: url('../assets/menu/settings-menu.webp'); }
 .is-hidden { display: none; }
 .menu-brand, .menu-actions, .settings-card, .menu-best, .leaderboard-card { position: relative; z-index: 1; }
 .menu-brand { display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 5px 18px rgba(0,0,0,.55)); }
@@ -96,7 +96,7 @@ body {
 .lang-button + .lang-button { margin-left: 6px; }
 .lang-button.is-active, .setting-toggle.is-active { color: #07131d; border-color: #69efc0; background: #69efc0; }
 .settings-card > .menu-button { margin-top: 22px; }
-.leaderboard-screen { justify-content: center; padding: 9%; background-image: url('../assets/menu/settings-menu.png'); }
+.leaderboard-screen { justify-content: center; padding: 9%; background-image: url('../assets/menu/settings-menu.webp'); }
 .leaderboard-card { width: 100%; max-height: 78%; padding: 20px; border: 1px solid rgba(115,225,255,.26); border-radius: 24px; background: rgba(3,11,22,.88); box-shadow: 0 22px 70px rgba(0,0,0,.45); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 .leaderboard-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
 .leaderboard-head h2 { font: 950 23px/1 Inter, system-ui, sans-serif; letter-spacing: .08em; }

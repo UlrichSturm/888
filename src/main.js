@@ -52,11 +52,11 @@ function ballRadiusForDepth(y = state.spawnY) {
   return 17 + depth * 17;
 }
 const levelBackgroundPaths = [
-  'assets/levels/level-01-jungle.png', 'assets/levels/level-02-pyramids.png',
-  'assets/levels/level-03-arctic.png', 'assets/levels/level-04-volcano.png',
-  'assets/levels/level-05-underwater.png', 'assets/levels/level-06-cybercity.png',
-  'assets/levels/level-07-moon.png', 'assets/levels/level-08-castle.png',
-  'assets/levels/level-09-sky-islands.png', 'assets/levels/level-10-cosmos.png'
+  'assets/levels/level-01-jungle.webp', 'assets/levels/level-02-pyramids.webp',
+  'assets/levels/level-03-arctic.webp', 'assets/levels/level-04-volcano.webp',
+  'assets/levels/level-05-underwater.webp', 'assets/levels/level-06-cybercity.webp',
+  'assets/levels/level-07-moon.webp', 'assets/levels/level-08-castle.webp',
+  'assets/levels/level-09-sky-islands.webp', 'assets/levels/level-10-cosmos.webp'
 ];
 const levelBackgrounds = levelBackgroundPaths.map(src=>{const image=new Image();image.src=src;return image});
 const ballArt = new Image(); ballArt.src = 'assets/ball-premium.png';
