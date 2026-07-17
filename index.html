@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#081520">
+  <meta name="description" content="888 Basketball — a precision timing arcade game">
+  <title>888 Basketball — Precision Arcade</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div id="device-stage">
+    <div id="device-shell">
+      <canvas id="game-canvas" aria-label="888 Basketball game"></canvas>
+      <section id="menu-screen" class="game-screen menu-screen">
+        <div class="menu-brand"><span>888</span><small>BASKETBALL</small></div>
+        <div class="menu-actions">
+          <button id="start-button" class="menu-button menu-button--primary">START</button>
+          <button id="settings-button" class="menu-button">SETTINGS</button>
+        </div>
+      </section>
+      <section id="settings-screen" class="game-screen settings-screen is-hidden">
+        <div class="settings-card">
+          <h2 id="settings-title">SETTINGS</h2>
+          <div class="setting-row"><span id="sound-label">SOUND</span><button id="sound-toggle" class="setting-toggle">ON</button></div>
+          <div class="setting-row setting-row--language"><span id="language-label">LANGUAGE</span><div><button class="lang-button" data-lang="en">EN</button><button class="lang-button" data-lang="ru">RU</button></div></div>
+          <button id="back-button" class="menu-button">BACK</button>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script defer src="src/main.js"></script>
+</body>
+</html>
