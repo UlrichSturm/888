@@ -24,14 +24,14 @@ const state = {
   target: .72, targetWidth: .20, spawnX: .5, spawnY: .79, markerSpeed: .76, shotValue: 2, difficulty: 'MID RANGE',
   message: 'HOLD TO SHOOT', sub: 'Release in the green zone', messageTime: 0,
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
-  level: 1, levelTime: 24, gameStarted: false, targetDirection: 1,
+  level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
   language: localStorage.getItem('basket888-language')||'en',
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen');
 const copy={
-  en:{start:'START',settings:'SETTINGS',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',conquered:'888 CONQUERED',again:'TAP TO MENU'},
-  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ'}
+  en:{start:'START',settings:'SETTINGS',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU'},
+  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ'}
 };
 const tr=key=>copy[state.language][key];
 function applyLanguage(){
@@ -132,7 +132,7 @@ function release() {
   state.trail=[];
   tone(240,.12,'triangle',.04); navigator.vibrate?.(12);
 }
-function reset(){ Object.assign(state,{score:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot'}); randomizeShot(); }
+function reset(){ Object.assign(state,{score:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot'}); randomizeShot(); }
 canvas.addEventListener('pointerdown', e=>{e.preventDefault(); begin()});
 addEventListener('pointerup', release); canvas.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); if(!e.repeat)begin()} if(e.key.toLowerCase()==='m')state.sound=!state.sound });
@@ -166,13 +166,17 @@ function update(dt){
     state.levelTime-=dt;
     if(state.levelTime<=0){
       playClip(buzzerAudio,.58,1);
-      if(state.level>=10){state.levelTime=0;state.phase='over';state.gameStarted=false;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best)}
+      if(state.level>=10){state.levelTime=0;state.phase='over';state.gameStarted=false;state.gameOverTime=6;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best)}
       else{
         state.level++;state.levelTime=24;state.phase='levelIntro';state.gameStarted=false;state.power=0;state.direction=1;
         state.trail=[];state.bounce=null;state.hit=false;randomizeShot();
         playClip(levelCheerAudio,.34,1);
       }
     }
+  }
+  if(state.phase==='over'){
+    state.gameOverTime-=dt;
+    if(state.gameOverTime<=0){reset();showMenu()}
   }
   if(state.level>=4&&(state.phase==='ready'||state.phase==='aim')){
     const zoneSpeed=.035+(state.level-4)*.020,margin=state.targetWidth/2+.025;
@@ -272,7 +276,9 @@ function gameOverOverlay(){
   text(tr('complete'),W/2,H*.42,12,'900','#75e8ff');
   text(String(state.score),W/2,H*.485,54,'900',state.score>=888?'#64ffb2':'#fff');
   text(state.score>=888?tr('conquered'):tr('final'),W/2,H*.535,14,'900',state.score>=888?'#ff9b55':'rgba(255,255,255,.68)');
-  text(tr('again'),W/2,H*.62,11,'800','rgba(255,255,255,.62)');
+  text(`${tr('best')}  ${String(state.best).padStart(3,'0')}`,W/2,H*.585,17,'900','#75e8ff');
+  text(`${tr('returning')} · ${Math.max(1,Math.ceil(state.gameOverTime))}`,W/2,H*.65,10,'800','rgba(255,255,255,.55)');
+  text(tr('again'),W/2,H*.69,9,'800','rgba(255,255,255,.42)');
 }
 function idleDribble(){
   const cycle=(state.time*1.55)%1;
