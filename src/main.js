@@ -17,6 +17,12 @@ function haptic(type = 'light') {
     navigator.vibrate(type === 'heavy' ? 35 : 12);
   }
 }
+
+function requestTelegramFullscreen() {
+  if (!telegram) return;
+  telegram.expand();
+  telegram.requestFullscreen?.();
+}
 const levelBackgroundPaths = [
   'assets/levels/level-01-jungle.png', 'assets/levels/level-02-pyramids.png',
   'assets/levels/level-03-arctic.png', 'assets/levels/level-04-volcano.png',
@@ -59,12 +65,12 @@ function applyLanguage(){
 function playMenuMusic(){if(state.sound)menuMusic.play().catch(()=>{})}
 function showMenu(){menuScreen.classList.remove('is-hidden');settingsScreen.classList.add('is-hidden');playMenuMusic()}
 function showSettings(){menuScreen.classList.add('is-hidden');settingsScreen.classList.remove('is-hidden');playMenuMusic()}
-document.querySelector('#start-button').addEventListener('click',()=>{menuMusic.pause();menuMusic.currentTime=0;menuScreen.classList.add('is-hidden');reset();playClip(levelCheerAudio,.34,1)});
+document.querySelector('#start-button').addEventListener('click',()=>{requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;menuScreen.classList.add('is-hidden');reset();playClip(levelCheerAudio,.34,1)});
 document.querySelector('#settings-button').addEventListener('click',showSettings);
 document.querySelector('#back-button').addEventListener('click',showMenu);
 document.querySelector('#sound-toggle').addEventListener('click',()=>{state.sound=!state.sound;localStorage.setItem('basket888-sound',state.sound?'on':'off');if(state.sound)playMenuMusic();else menuMusic.pause();applyLanguage()});
 document.querySelectorAll('.lang-button').forEach(b=>b.addEventListener('click',()=>{state.language=b.dataset.lang;localStorage.setItem('basket888-language',state.language);applyLanguage()}));
-menuScreen.addEventListener('pointerdown',playMenuMusic,{once:true});settingsScreen.addEventListener('pointerdown',playMenuMusic,{once:true});applyLanguage();
+menuScreen.addEventListener('pointerdown',event=>{playMenuMusic();if(event.target.closest('#start-button'))requestTelegramFullscreen()},{once:true});settingsScreen.addEventListener('pointerdown',playMenuMusic,{once:true});applyLanguage();
 
 function resize() {
   const box = canvas.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
