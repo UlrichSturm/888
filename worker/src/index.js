@@ -89,6 +89,15 @@ async function playerSummary(db, telegramId) {
   `).bind(String(telegramId)).first();
 }
 
+function withLeague(player) {
+  const league = Number(player.bestScore) >= 888 ? 8888 : 888;
+  return {
+    ...player,
+    league,
+    displayName: player.username ? `@${player.username}` : player.firstName,
+  };
+}
+
 async function authorizeRequest(request, env) {
   let body;
   try {
@@ -115,17 +124,19 @@ export default {
     }
 
     if (request.method === 'GET' && url.pathname === '/leaderboard') {
+      const league = Number(url.searchParams.get('league')) === 8888 ? 8888 : 888;
+      const minimumScore = league === 8888 ? 888 : 1;
+      const maximumScore = league === 8888 ? 8888 : 887;
       const { results } = await env.DB.prepare(`
         SELECT telegram_id AS id, username, first_name AS firstName, best_score AS bestScore
         FROM players
-        WHERE best_score > 0
+        WHERE best_score BETWEEN ? AND ?
         ORDER BY best_score DESC, updated_at ASC
         LIMIT 100
-      `).all();
-      return json({ leaderboard: results.map((player, index) => ({
+      `).bind(minimumScore, maximumScore).all();
+      return json({ league, leaderboard: results.map((player, index) => ({
         rank: index + 1,
-        ...player,
-        displayName: player.username ? `@${player.username}` : player.firstName,
+        ...withLeague(player),
       })) }, 200, request, env);
     }
 
@@ -138,11 +149,11 @@ export default {
 
     if (url.pathname === '/auth/telegram') {
       const player = await playerSummary(env.DB, authorized.user.id);
-      return json({ player: { ...player, displayName: player.username ? `@${player.username}` : player.firstName } }, 200, request, env);
+      return json({ player: withLeague(player) }, 200, request, env);
     }
 
     const score = Number(authorized.body.score);
-    if (!Number.isInteger(score) || score < 0 || score > 888) {
+    if (!Number.isInteger(score) || score < 0 || score > 8888) {
       return json({ error: 'Score is outside the valid range' }, 400, request, env);
     }
     await env.DB.prepare(`
@@ -157,7 +168,7 @@ export default {
     `).bind(player.bestScore).first();
 
     return json({
-      player: { ...player, displayName: player.username ? `@${player.username}` : player.firstName },
+      player: withLeague(player),
       rank: ranking.rank,
     }, 200, request, env);
   },

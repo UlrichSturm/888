@@ -76,7 +76,7 @@ const state = {
   message: 'HOLD TO SHOOT', sub: 'Release in the green zone', messageTime: 0,
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
-  language: localStorage.getItem('basket888-language')||'en', finalRank: null, scoreSubmitted: false,
+  language: localStorage.getItem('basket888-language')||'en', finalRank: null, scoreSubmitted: false, league: 888,
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
@@ -88,7 +88,7 @@ const tr=key=>copy[state.language][key];
 function refreshBestUI(){document.querySelector('#menu-best-score').textContent=String(state.best).padStart(3,'0')}
 function applyAuthenticatedPlayer(){
   const player=authenticatedPlayer?.player;if(!player)return;
-  state.best=Math.max(state.best,Number(player.bestScore)||0);localStorage.setItem('basket888-best',state.best);refreshBestUI();
+  state.best=Math.max(state.best,Number(player.bestScore)||0);state.league=Number(player.league)||888;localStorage.setItem('basket888-best',state.best);refreshBestUI();
 }
 function applyLanguage(){
   document.querySelector('#start-button').textContent=tr('start');document.querySelector('#leaderboard-button').textContent=tr('leaderboard');document.querySelector('#settings-button').textContent=tr('settings');document.querySelector('#settings-title').textContent=tr('settings');document.querySelector('#sound-label').textContent=tr('sound');document.querySelector('#language-label').textContent=tr('language');document.querySelector('#back-button').textContent=tr('back');document.querySelector('#your-best-label').textContent=tr('yourBest');document.querySelector('#leaderboard-title').textContent=tr('top100');document.querySelector('#leaderboard-back-button').textContent=tr('back');
@@ -101,10 +101,10 @@ function showSettings(){menuScreen.classList.add('is-hidden');settingsScreen.cla
 async function showLeaderboard(){
   menuScreen.classList.add('is-hidden');settingsScreen.classList.add('is-hidden');leaderboardScreen.classList.remove('is-hidden');playMenuMusic();
   const list=document.querySelector('#leaderboard-list'),status=document.querySelector('#leaderboard-status');list.replaceChildren();status.textContent=tr('loading');
-  try{const response=await fetch(TELEGRAM_LEADERBOARD_URL);const data=await response.json();if(!response.ok)throw Error('leaderboard');
+  try{const response=await fetch(`${TELEGRAM_LEADERBOARD_URL}?league=${state.league}`);const data=await response.json();if(!response.ok)throw Error('leaderboard');
     if(!data.leaderboard.length){const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
     else data.leaderboard.forEach(player=>{const item=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');name.textContent=player.displayName;score.textContent=String(player.bestScore).padStart(3,'0');item.append(name,score);list.append(item)});
-    status.textContent='TOP 100';
+    status.textContent=`${data.league} LEAGUE`;
   }catch{status.textContent='OFFLINE';const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
 }
 document.querySelector('#start-button').addEventListener('click',()=>{requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;menuScreen.classList.add('is-hidden');reset();playClip(levelCheerAudio,.34,1)});
@@ -199,12 +199,12 @@ function release() {
   state.trail=[];
   tone(240,.12,'triangle',.04); haptic('light');
 }
-function reset(){ Object.assign(state,{score:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,scoreSubmitted:false}); randomizeShot(); }
+function reset(){ Object.assign(state,{score:state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,scoreSubmitted:false}); randomizeShot(); }
 async function submitFinalScore(){
   if(state.scoreSubmitted||!telegram?.initData)return;state.scoreSubmitted=true;
   try{
     const response=await fetch(TELEGRAM_SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:telegram.initData,score:state.score})});
-    if(!response.ok)return;const data=await response.json();authenticatedPlayer={player:data.player};state.best=Math.max(state.best,Number(data.player.bestScore)||0);state.finalRank=Number(data.rank)||null;localStorage.setItem('basket888-best',state.best);refreshBestUI();
+    if(!response.ok)return;const data=await response.json();authenticatedPlayer={player:data.player};state.best=Math.max(state.best,Number(data.player.bestScore)||0);state.league=Number(data.player.league)||888;state.finalRank=Number(data.rank)||null;localStorage.setItem('basket888-best',state.best);refreshBestUI();
   }catch{/* A local best is kept when the player is offline. */}
 }
 canvas.addEventListener('pointerdown', e=>{e.preventDefault();requestTelegramFullscreen(); begin()});
@@ -323,7 +323,7 @@ function hud(){
   ctx.font='600 20px Inter, system-ui, sans-serif';const slashWidth=ctx.measureText('/').width,slashX=scoreX+scoreWidth+gap;
   text(scoreText,scoreX,hudY+7,29,'900','#fff','left');
   text('/',slashX,hudY+7,20,'600','rgba(255,255,255,.35)','left');
-  text('888',slashX+slashWidth+gap,hudY+7,29,'900','#ff7b39','left');
+  text(String(state.league),slashX+slashWidth+gap,hudY+7,29,'900','#ff7b39','left');
   text(tr('best'),W-112,hudY-14,9,'800','rgba(255,255,255,.5)','left');
   text(String(state.best).padStart(3,'0'),W-112,hudY+7,25,'900','#fff','left');
   if(state.phase==='levelIntro'||state.phase==='over')return;
