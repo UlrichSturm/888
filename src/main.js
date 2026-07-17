@@ -1,5 +1,22 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
+const telegram = window.Telegram?.WebApp;
+
+if (telegram) {
+  telegram.ready();
+  telegram.expand();
+  telegram.setHeaderColor?.('#081520');
+  telegram.setBackgroundColor?.('#081520');
+  telegram.disableVerticalSwipes?.();
+}
+
+function haptic(type = 'light') {
+  if (telegram?.HapticFeedback) {
+    telegram.HapticFeedback.impactOccurred(type);
+  } else if (navigator.vibrate) {
+    navigator.vibrate(type === 'heavy' ? 35 : 12);
+  }
+}
 const levelBackgroundPaths = [
   'assets/levels/level-01-jungle.png', 'assets/levels/level-02-pyramids.png',
   'assets/levels/level-03-arctic.png', 'assets/levels/level-04-volcano.png',
@@ -130,7 +147,7 @@ function release() {
   const accuracy = Math.abs(state.power - state.target); state.hit = accuracy < state.targetWidth / 2;
   state.perfect = accuracy < state.targetWidth * .18; state.flightT=0; state.startPower=state.power;
   state.trail=[];
-  tone(240,.12,'triangle',.04); navigator.vibrate?.(12);
+  tone(240,.12,'triangle',.04); haptic('light');
 }
 function reset(){ Object.assign(state,{score:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot'}); randomizeShot(); }
 canvas.addEventListener('pointerdown', e=>{e.preventDefault(); begin()});
@@ -143,10 +160,10 @@ function finishShot(){
     state.hits++; state.streak++; const multiplier=1+Math.floor((state.level-1)/3),pts=state.shotValue*multiplier; state.score += pts;
     state.best=Math.max(state.best,state.score); localStorage.setItem('basket888-best',state.best);
     state.message=state.perfect?`PERFECT +${pts}`:`BUCKET +${pts}`; state.sub=state.streak>1?`${state.streak}× streak · keep cooking`:'Clean release';
-    navigator.vibrate?.([16,18,24]); state.shake=2.5;
+    haptic('medium'); state.shake=2.5;
   } else {
     state.streak=0; state.message=state.startPower<.6?'TOO EARLY':'OFF TARGET'; state.sub='Reset. Breathe. Shoot again.';
-    navigator.vibrate?.(35);
+    haptic('heavy');
   }
   state.phase='result'; state.messageTime=.08;
 }

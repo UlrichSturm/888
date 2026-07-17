@@ -28,7 +28,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: clamp(8px, 2vh, 16px);
-  padding: clamp(8px, 2vmin, 24px);
+  padding: max(env(safe-area-inset-top), clamp(8px, 2vmin, 24px)) max(env(safe-area-inset-right), clamp(8px, 2vmin, 24px)) max(env(safe-area-inset-bottom), clamp(8px, 2vmin, 24px)) max(env(safe-area-inset-left), clamp(8px, 2vmin, 24px));
 }
 
 #device-shell {
@@ -117,7 +117,7 @@ body {
 /* Phone — full bleed, no decorative chrome */
 @media (max-width: 600px), (max-height: 700px) and (orientation: portrait) {
   #device-stage {
-    padding: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     gap: 0;
   }
 
