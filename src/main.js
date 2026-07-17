@@ -1,7 +1,10 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
+const APP_VERSION = '1.0.1+1';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
+const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
+const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
 let authenticatedPlayer = null;
 
 if (telegram) {
@@ -20,7 +23,10 @@ async function authenticateTelegramPlayer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ initData: telegram.initData }),
     });
-    if (response.ok) authenticatedPlayer = await response.json();
+    if (response.ok) {
+      authenticatedPlayer = await response.json();
+      applyAuthenticatedPlayer();
+    }
   } catch {
     // The game stays playable if authorization is temporarily unavailable.
   }
@@ -47,11 +53,11 @@ function ballRadiusForDepth(y = state.spawnY) {
   return 17 + depth * 17;
 }
 const levelBackgroundPaths = [
-  'assets/levels/level-01-jungle.png', 'assets/levels/level-02-pyramids.png',
-  'assets/levels/level-03-arctic.png', 'assets/levels/level-04-volcano.png',
-  'assets/levels/level-05-underwater.png', 'assets/levels/level-06-cybercity.png',
-  'assets/levels/level-07-moon.png', 'assets/levels/level-08-castle.png',
-  'assets/levels/level-09-sky-islands.png', 'assets/levels/level-10-cosmos.png'
+  'assets/levels/level-01-jungle.webp', 'assets/levels/level-02-pyramids.webp',
+  'assets/levels/level-03-arctic.webp', 'assets/levels/level-04-volcano.webp',
+  'assets/levels/level-05-underwater.webp', 'assets/levels/level-06-cybercity.webp',
+  'assets/levels/level-07-moon.webp', 'assets/levels/level-08-castle.webp',
+  'assets/levels/level-09-sky-islands.webp', 'assets/levels/level-10-cosmos.webp'
 ];
 const levelBackgrounds = levelBackgroundPaths.map(src=>{const image=new Image();image.src=src;return image});
 const ballArt = new Image(); ballArt.src = 'assets/ball-premium.png';
@@ -71,29 +77,46 @@ const state = {
   message: 'HOLD TO SHOOT', sub: 'Release in the green zone', messageTime: 0,
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
-  language: localStorage.getItem('basket888-language')||'en',
+  language: localStorage.getItem('basket888-language')||'en', finalRank: null, scoreSubmitted: false, league: 888,
 };
 let W = 0, H = 0, dpr = 1, audio;
-const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen');
+const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
 const copy={
-  en:{start:'START',settings:'SETTINGS',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU'},
-  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ'}
+  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU'},
+  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ'}
 };
 const tr=key=>copy[state.language][key];
+function refreshBestUI(){document.querySelector('#menu-best-score').textContent=String(state.best).padStart(3,'0')}
+function applyAuthenticatedPlayer(){
+  const player=authenticatedPlayer?.player;if(!player)return;
+  state.best=Math.max(state.best,Number(player.bestScore)||0);state.league=Number(player.league)||888;localStorage.setItem('basket888-best',state.best);refreshBestUI();
+}
 function applyLanguage(){
-  document.querySelector('#start-button').textContent=tr('start');document.querySelector('#settings-button').textContent=tr('settings');document.querySelector('#settings-title').textContent=tr('settings');document.querySelector('#sound-label').textContent=tr('sound');document.querySelector('#language-label').textContent=tr('language');document.querySelector('#back-button').textContent=tr('back');
+  document.querySelector('#start-button').textContent=tr('start');document.querySelector('#leaderboard-button').textContent=tr('leaderboard');document.querySelector('#settings-button').textContent=tr('settings');document.querySelector('#settings-title').textContent=tr('settings');document.querySelector('#sound-label').textContent=tr('sound');document.querySelector('#language-label').textContent=tr('language');document.querySelector('#back-button').textContent=tr('back');document.querySelector('#your-best-label').textContent=tr('yourBest');document.querySelector('#leaderboard-title').textContent=tr('top100');document.querySelector('#leaderboard-back-button').textContent=tr('back');
   const soundButton=document.querySelector('#sound-toggle');soundButton.textContent=tr(state.sound?'on':'off');soundButton.classList.toggle('is-active',state.sound);
+  document.querySelector('#app-version').textContent=`VERSION ${APP_VERSION}`;
   document.querySelectorAll('.lang-button').forEach(b=>b.classList.toggle('is-active',b.dataset.lang===state.language));
 }
 function playMenuMusic(){if(state.sound)menuMusic.play().catch(()=>{})}
-function showMenu(){menuScreen.classList.remove('is-hidden');settingsScreen.classList.add('is-hidden');playMenuMusic()}
-function showSettings(){menuScreen.classList.add('is-hidden');settingsScreen.classList.remove('is-hidden');playMenuMusic()}
+function showMenu(){menuScreen.classList.remove('is-hidden');settingsScreen.classList.add('is-hidden');leaderboardScreen.classList.add('is-hidden');refreshBestUI();playMenuMusic()}
+function showSettings(){menuScreen.classList.add('is-hidden');settingsScreen.classList.remove('is-hidden');leaderboardScreen.classList.add('is-hidden');playMenuMusic()}
+async function showLeaderboard(){
+  menuScreen.classList.add('is-hidden');settingsScreen.classList.add('is-hidden');leaderboardScreen.classList.remove('is-hidden');playMenuMusic();
+  const list=document.querySelector('#leaderboard-list'),status=document.querySelector('#leaderboard-status');list.replaceChildren();status.textContent=tr('loading');
+  try{const response=await fetch(`${TELEGRAM_LEADERBOARD_URL}?league=${state.league}`);const data=await response.json();if(!response.ok)throw Error('leaderboard');
+    if(!data.leaderboard.length){const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
+    else data.leaderboard.forEach(player=>{const item=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');name.textContent=player.displayName;score.textContent=String(player.bestScore).padStart(3,'0');item.append(name,score);list.append(item)});
+    status.textContent=`${data.league} LEAGUE`;
+  }catch{status.textContent='OFFLINE';const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
+}
 document.querySelector('#start-button').addEventListener('click',()=>{requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;menuScreen.classList.add('is-hidden');reset();playClip(levelCheerAudio,.34,1)});
+document.querySelector('#leaderboard-button').addEventListener('click',showLeaderboard);
 document.querySelector('#settings-button').addEventListener('click',showSettings);
 document.querySelector('#back-button').addEventListener('click',showMenu);
+document.querySelector('#leaderboard-back-button').addEventListener('click',showMenu);
 document.querySelector('#sound-toggle').addEventListener('click',()=>{state.sound=!state.sound;localStorage.setItem('basket888-sound',state.sound?'on':'off');if(state.sound)playMenuMusic();else menuMusic.pause();applyLanguage()});
 document.querySelectorAll('.lang-button').forEach(b=>b.addEventListener('click',()=>{state.language=b.dataset.lang;localStorage.setItem('basket888-language',state.language);applyLanguage()}));
-menuScreen.addEventListener('pointerdown',event=>{playMenuMusic();if(event.target.closest('#start-button'))requestTelegramFullscreen()},{once:true});settingsScreen.addEventListener('pointerdown',playMenuMusic,{once:true});applyLanguage();
+menuScreen.addEventListener('pointerdown',event=>{playMenuMusic();if(event.target.closest('#start-button'))requestTelegramFullscreen()},{once:true});settingsScreen.addEventListener('pointerdown',playMenuMusic,{once:true});applyLanguage();refreshBestUI();
 
 function resize() {
   const box = canvas.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
@@ -178,7 +201,14 @@ function release() {
   state.trail=[];
   tone(240,.12,'triangle',.04); haptic('light');
 }
-function reset(){ Object.assign(state,{score:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot'}); randomizeShot(); }
+function reset(){ Object.assign(state,{score:state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,scoreSubmitted:false}); randomizeShot(); }
+async function submitFinalScore(){
+  if(state.scoreSubmitted||!telegram?.initData)return;state.scoreSubmitted=true;
+  try{
+    const response=await fetch(TELEGRAM_SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:telegram.initData,score:state.score})});
+    if(!response.ok)return;const data=await response.json();authenticatedPlayer={player:data.player};state.best=Math.max(state.best,Number(data.player.bestScore)||0);state.league=Number(data.player.league)||888;state.finalRank=Number(data.rank)||null;localStorage.setItem('basket888-best',state.best);refreshBestUI();
+  }catch{/* A local best is kept when the player is offline. */}
+}
 canvas.addEventListener('pointerdown', e=>{e.preventDefault();requestTelegramFullscreen(); begin()});
 addEventListener('pointerup', release); canvas.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); if(!e.repeat)begin()} if(e.key.toLowerCase()==='m')state.sound=!state.sound });
@@ -212,7 +242,7 @@ function update(dt){
     state.levelTime-=dt;
     if(state.levelTime<=0){
       playClip(buzzerAudio,.58,1);
-      if(state.level>=10){state.levelTime=0;state.phase='over';state.gameStarted=false;state.gameOverTime=6;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best)}
+      if(state.level>=10){state.levelTime=0;state.phase='over';state.gameStarted=false;state.gameOverTime=6;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best);refreshBestUI();submitFinalScore()}
       else{
         state.level++;state.levelTime=24;state.phase='levelIntro';state.gameStarted=false;state.power=0;state.direction=1;
         state.trail=[];state.bounce=null;state.hit=false;randomizeShot();
@@ -295,7 +325,7 @@ function hud(){
   ctx.font='600 20px Inter, system-ui, sans-serif';const slashWidth=ctx.measureText('/').width,slashX=scoreX+scoreWidth+gap;
   text(scoreText,scoreX,hudY+7,29,'900','#fff','left');
   text('/',slashX,hudY+7,20,'600','rgba(255,255,255,.35)','left');
-  text('888',slashX+slashWidth+gap,hudY+7,29,'900','#ff7b39','left');
+  text(String(state.league),slashX+slashWidth+gap,hudY+7,29,'900','#ff7b39','left');
   text(tr('best'),W-112,hudY-14,9,'800','rgba(255,255,255,.5)','left');
   text(String(state.best).padStart(3,'0'),W-112,hudY+7,25,'900','#fff','left');
   if(state.phase==='levelIntro'||state.phase==='over')return;
@@ -323,8 +353,9 @@ function gameOverOverlay(){
   text(String(state.score),W/2,H*.485,54,'900',state.score>=888?'#64ffb2':'#fff');
   text(state.score>=888?tr('conquered'):tr('final'),W/2,H*.535,14,'900',state.score>=888?'#ff9b55':'rgba(255,255,255,.68)');
   text(`${tr('best')}  ${String(state.best).padStart(3,'0')}`,W/2,H*.585,17,'900','#75e8ff');
-  text(`${tr('returning')} · ${Math.max(1,Math.ceil(state.gameOverTime))}`,W/2,H*.65,10,'800','rgba(255,255,255,.55)');
-  text(tr('again'),W/2,H*.69,9,'800','rgba(255,255,255,.42)');
+  if(state.finalRank)text(`${tr('worldRank')}  #${state.finalRank}`,W/2,H*.625,13,'900','#ffb15e');
+  text(`${tr('returning')} · ${Math.max(1,Math.ceil(state.gameOverTime))}`,W/2,state.finalRank?H*.67:H*.65,10,'800','rgba(255,255,255,.55)');
+  text(tr('again'),W/2,state.finalRank?H*.71:H*.69,9,'800','rgba(255,255,255,.42)');
 }
 function idleDribble(){
   const cycle=(state.time*1.55)%1;
