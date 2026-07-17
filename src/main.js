@@ -1,6 +1,8 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
+const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
+let authenticatedPlayer = null;
 
 if (telegram) {
   telegram.ready();
@@ -9,6 +11,22 @@ if (telegram) {
   telegram.setBackgroundColor?.('#081520');
   telegram.disableVerticalSwipes?.();
 }
+
+async function authenticateTelegramPlayer() {
+  if (!telegram?.initData) return;
+  try {
+    const response = await fetch(TELEGRAM_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: telegram.initData }),
+    });
+    if (response.ok) authenticatedPlayer = await response.json();
+  } catch {
+    // The game stays playable if authorization is temporarily unavailable.
+  }
+}
+
+authenticateTelegramPlayer();
 
 function haptic(type = 'light') {
   if (telegram?.HapticFeedback) {

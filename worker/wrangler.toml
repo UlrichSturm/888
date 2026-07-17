@@ -1,0 +1,14 @@
+name = "basketball888-api"
+main = "src/index.js"
+compatibility_date = "2026-07-17"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "basketball888-db"
+database_id = "955e36a6-e7a5-4628-8dd4-7e8faed7693d"
+
+[vars]
+ALLOWED_ORIGIN = "https://ulrichsturm.github.io"
+
+[secrets]
+required = ["BOT_TOKEN"]
