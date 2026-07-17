@@ -119,7 +119,8 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(request, env) });
     const url = new URL(request.url);
     const origin = request.headers.get('Origin');
-    if (origin !== (env.ALLOWED_ORIGIN || 'https://ulrichsturm.github.io')) {
+    const isPublicLeaderboard = request.method === 'GET' && url.pathname === '/leaderboard';
+    if (!isPublicLeaderboard && origin !== (env.ALLOWED_ORIGIN || 'https://ulrichsturm.github.io')) {
       return json({ error: 'Origin is not allowed' }, 403, request, env);
     }
 

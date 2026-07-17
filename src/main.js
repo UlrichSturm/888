@@ -1,6 +1,7 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
+const APP_VERSION = '1.0.1+1';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
 const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
 const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
@@ -93,6 +94,7 @@ function applyAuthenticatedPlayer(){
 function applyLanguage(){
   document.querySelector('#start-button').textContent=tr('start');document.querySelector('#leaderboard-button').textContent=tr('leaderboard');document.querySelector('#settings-button').textContent=tr('settings');document.querySelector('#settings-title').textContent=tr('settings');document.querySelector('#sound-label').textContent=tr('sound');document.querySelector('#language-label').textContent=tr('language');document.querySelector('#back-button').textContent=tr('back');document.querySelector('#your-best-label').textContent=tr('yourBest');document.querySelector('#leaderboard-title').textContent=tr('top100');document.querySelector('#leaderboard-back-button').textContent=tr('back');
   const soundButton=document.querySelector('#sound-toggle');soundButton.textContent=tr(state.sound?'on':'off');soundButton.classList.toggle('is-active',state.sound);
+  document.querySelector('#app-version').textContent=`VERSION ${APP_VERSION}`;
   document.querySelectorAll('.lang-button').forEach(b=>b.classList.toggle('is-active',b.dataset.lang===state.language));
 }
 function playMenuMusic(){if(state.sound)menuMusic.play().catch(()=>{})}
