@@ -23,6 +23,11 @@ function requestTelegramFullscreen() {
   telegram.expand();
   telegram.requestFullscreen?.();
 }
+
+function ballRadiusForDepth(y = state.spawnY) {
+  const depth = Math.max(0, Math.min(1, (y - .55) / .34));
+  return 17 + depth * 17;
+}
 const levelBackgroundPaths = [
   'assets/levels/level-01-jungle.png', 'assets/levels/level-02-pyramids.png',
   'assets/levels/level-03-arctic.png', 'assets/levels/level-04-volcano.png',
@@ -156,7 +161,7 @@ function release() {
   tone(240,.12,'triangle',.04); haptic('light');
 }
 function reset(){ Object.assign(state,{score:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot'}); randomizeShot(); }
-canvas.addEventListener('pointerdown', e=>{e.preventDefault(); begin()});
+canvas.addEventListener('pointerdown', e=>{e.preventDefault();requestTelegramFullscreen(); begin()});
 addEventListener('pointerup', release); canvas.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); if(!e.repeat)begin()} if(e.key.toLowerCase()==='m')state.sound=!state.sound });
 addEventListener('keyup',e=>{if(e.code==='Space')release()});
@@ -176,7 +181,7 @@ function finishShot(){
 function flightPosition(t=state.flightT){
   t=Math.min(1,t);const sx=W*state.spawnX,sy=H*(state.shotStartY??state.spawnY-.105),ex=state.hit?W*.5:W*(state.startPower < state.target ? .34 : .7),ey=H*.31;
   const perspective=Math.pow(t,.78);
-  return{x:sx+(ex-sx)*t,y:sy+(ey-sy)*t-Math.sin(Math.PI*t)*H*.27,r:32-(perspective*23)};
+  return{x:sx+(ex-sx)*t,y:sy+(ey-sy)*t-Math.sin(Math.PI*t)*H*.27,r:ballRadiusForDepth()-(perspective*(ballRadiusForDepth()-9))};
 }
 function startBounce(){
   const p=flightPosition(1), side=p.x<W/2?-1:1;
@@ -322,8 +327,8 @@ function draw(){
     ball(state.bounce.x,state.bounce.y,12+depth*16);
   } else if(state.phase==='ready') {
     const d=idleDribble();
-    ball(d.x,d.y,30);
-  } else if(state.phase==='aim'||state.phase==='result') ball(W*state.spawnX,H*(state.spawnY-.105),32);
+    ball(d.x,d.y,ballRadiusForDepth());
+  } else if(state.phase==='aim'||state.phase==='result') ball(W*state.spawnX,H*(state.spawnY-.105),ballRadiusForDepth());
   ctx.globalAlpha=1;hud();levelIntroOverlay();gameOverOverlay();ctx.restore();
 }
 let last=performance.now();function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
