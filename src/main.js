@@ -1,11 +1,14 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
-const APP_VERSION = '1.0.1+1';
+const APP_VERSION = '1.0.2+2';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
 const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
 const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
 let authenticatedPlayer = null;
+let lastServerBest = 0;
+let bestScoreSyncInFlight = false;
+let finalRankRequested = false;
 
 if (telegram) {
   telegram.ready();
@@ -77,7 +80,7 @@ const state = {
   message: 'HOLD TO SHOOT', sub: 'Release in the green zone', messageTime: 0,
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
-  language: localStorage.getItem('basket888-language')||'en', finalRank: null, scoreSubmitted: false, league: 888,
+  language: localStorage.getItem('basket888-language')||'en', finalRank: null, league: 888,
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
@@ -89,7 +92,8 @@ const tr=key=>copy[state.language][key];
 function refreshBestUI(){document.querySelector('#menu-best-score').textContent=String(state.best).padStart(3,'0')}
 function applyAuthenticatedPlayer(){
   const player=authenticatedPlayer?.player;if(!player)return;
-  state.best=Math.max(state.best,Number(player.bestScore)||0);state.league=Number(player.league)||888;localStorage.setItem('basket888-best',state.best);refreshBestUI();
+  const serverBest=Number(player.bestScore)||0;
+  lastServerBest=Math.max(lastServerBest,serverBest);state.best=Math.max(state.best,serverBest);state.league=Number(player.league)||888;localStorage.setItem('basket888-best',state.best);refreshBestUI();
 }
 function applyLanguage(){
   document.querySelector('#start-button').textContent=tr('start');document.querySelector('#leaderboard-button').textContent=tr('leaderboard');document.querySelector('#settings-button').textContent=tr('settings');document.querySelector('#settings-title').textContent=tr('settings');document.querySelector('#sound-label').textContent=tr('sound');document.querySelector('#language-label').textContent=tr('language');document.querySelector('#back-button').textContent=tr('back');document.querySelector('#your-best-label').textContent=tr('yourBest');document.querySelector('#leaderboard-title').textContent=tr('top100');document.querySelector('#leaderboard-back-button').textContent=tr('back');
@@ -201,13 +205,17 @@ function release() {
   state.trail=[];
   tone(240,.12,'triangle',.04); haptic('light');
 }
-function reset(){ Object.assign(state,{score:state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,scoreSubmitted:false}); randomizeShot(); }
-async function submitFinalScore(){
-  if(state.scoreSubmitted||!telegram?.initData)return;state.scoreSubmitted=true;
+function reset(){ Object.assign(state,{score:state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null}); randomizeShot(); }
+async function syncBestScore(final=false){
+  if(final)finalRankRequested=true;
+  if(bestScoreSyncInFlight||!telegram?.initData||(!finalRankRequested&&state.score<=lastServerBest))return;
+  const scoreToSync=state.score;bestScoreSyncInFlight=true;
+  let saved=false;
   try{
-    const response=await fetch(TELEGRAM_SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:telegram.initData,score:state.score})});
-    if(!response.ok)return;const data=await response.json();authenticatedPlayer={player:data.player};state.best=Math.max(state.best,Number(data.player.bestScore)||0);state.league=Number(data.player.league)||888;state.finalRank=Number(data.rank)||null;localStorage.setItem('basket888-best',state.best);refreshBestUI();
+    const response=await fetch(TELEGRAM_SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:telegram.initData,score:scoreToSync})});
+    if(!response.ok)return;const data=await response.json();authenticatedPlayer={player:data.player};lastServerBest=Math.max(lastServerBest,Number(data.player.bestScore)||0);state.best=Math.max(state.best,lastServerBest);state.league=Number(data.player.league)||888;if(finalRankRequested)state.finalRank=Number(data.rank)||null;finalRankRequested=false;localStorage.setItem('basket888-best',state.best);refreshBestUI();saved=true;
   }catch{/* A local best is kept when the player is offline. */}
+  finally{bestScoreSyncInFlight=false;if(saved&&state.score>lastServerBest)syncBestScore(final)}
 }
 canvas.addEventListener('pointerdown', e=>{e.preventDefault();requestTelegramFullscreen(); begin()});
 addEventListener('pointerup', release); canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -218,6 +226,7 @@ function finishShot(){
   if(state.hit){
     state.hits++; state.streak++; const multiplier=1+Math.floor((state.level-1)/3),pts=state.shotValue*multiplier; state.score += pts;
     state.best=Math.max(state.best,state.score); localStorage.setItem('basket888-best',state.best);
+    syncBestScore();
     state.message=state.perfect?`PERFECT +${pts}`:`BUCKET +${pts}`; state.sub=state.streak>1?`${state.streak}× streak · keep cooking`:'Clean release';
     haptic('medium'); state.shake=2.5;
   } else {
@@ -242,7 +251,7 @@ function update(dt){
     state.levelTime-=dt;
     if(state.levelTime<=0){
       playClip(buzzerAudio,.58,1);
-      if(state.level>=10){state.levelTime=0;state.phase='over';state.gameStarted=false;state.gameOverTime=6;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best);refreshBestUI();submitFinalScore()}
+      if(state.level>=10){state.levelTime=0;state.phase='over';state.gameStarted=false;state.gameOverTime=6;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best);refreshBestUI();syncBestScore(true)}
       else{
         state.level++;state.levelTime=24;state.phase='levelIntro';state.gameStarted=false;state.power=0;state.direction=1;
         state.trail=[];state.bounce=null;state.hit=false;randomizeShot();
