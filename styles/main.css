@@ -118,6 +118,7 @@ body {
 .mode-choice small { align-self: end; color: rgba(255,255,255,.58); font: 800 9px/1 Inter,system-ui,sans-serif; letter-spacing: .09em; }
 .mode-choice--primary { border-color: #74efff; background: linear-gradient(125deg,rgba(54,224,255,.27),rgba(83,255,176,.16)); box-shadow: 0 9px 25px rgba(75,227,255,.13); }
 .mode-choice--arc { border-color: rgba(255,150,88,.64); background: linear-gradient(125deg,rgba(255,107,53,.24),rgba(107,82,255,.16)); box-shadow: 0 9px 25px rgba(255,107,53,.12); }
+.mode-choice--rhythm { border-color: rgba(151,117,255,.7); background: linear-gradient(125deg,rgba(126,96,255,.29),rgba(58,221,255,.14)); box-shadow: 0 9px 25px rgba(117,96,255,.18); }
 .mode-choice:active { transform: scale(.98); }
 .modes-card > .menu-button { margin-top: 8px; }
 
