@@ -1,7 +1,7 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
-const APP_VERSION = '1.0.2+2';
+const APP_VERSION = '1.0.3+3';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
 const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
 const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
@@ -80,13 +80,13 @@ const state = {
   message: 'HOLD TO SHOOT', sub: 'Release in the green zone', messageTime: 0,
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
-  language: localStorage.getItem('basket888-language')||'en', finalRank: null, league: 888,
+  language: localStorage.getItem('basket888-language')||'en', finalRank: null, league: 888, mode: 'full', endlessShots: 0, endlessMisses: 0, endlessDifficulty: 0,
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
 const copy={
-  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU'},
-  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ'}
+  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU',modes:'GAME MODES',chooseRun:'CHOOSE YOUR RUN',fullGame:'FULL GAME',fullGameSub:'10 LEVELS · 24 SEC EACH',endless:'ENDLESS',endlessSub:'3 MISSES · GET HARDER EVERY SHOT',endlessReady:'3 MISSES. HOW FAR CAN YOU GO?',endlessOver:'ENDLESS OVER',misses:'MISSES'},
+  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ',modes:'РЕЖИМЫ ИГРЫ',chooseRun:'ВЫБЕРИТЕ РЕЖИМ',fullGame:'ПОЛНАЯ ИГРА',fullGameSub:'10 УРОВНЕЙ · ПО 24 СЕК',endless:'БЕСКОНЕЧНЫЙ',endlessSub:'3 ПРОМАХА · СЛОЖНЕЕ КАЖДЫЙ БРОСОК',endlessReady:'3 ПРОМАХА. КАК ДАЛЕКО ЗАЙДЁТЕ?',endlessOver:'КОНЕЦ ЗАБЕГА',misses:'ПРОМАХИ'}
 };
 const tr=key=>copy[state.language][key];
 function refreshBestUI(){document.querySelector('#menu-best-score').textContent=String(state.best).padStart(3,'0')}
@@ -99,13 +99,19 @@ function applyLanguage(){
   document.querySelector('#start-button').textContent=tr('start');document.querySelector('#leaderboard-button').textContent=tr('leaderboard');document.querySelector('#settings-button').textContent=tr('settings');document.querySelector('#settings-title').textContent=tr('settings');document.querySelector('#sound-label').textContent=tr('sound');document.querySelector('#language-label').textContent=tr('language');document.querySelector('#back-button').textContent=tr('back');document.querySelector('#your-best-label').textContent=tr('yourBest');document.querySelector('#leaderboard-title').textContent=tr('top100');document.querySelector('#leaderboard-back-button').textContent=tr('back');
   const soundButton=document.querySelector('#sound-toggle');soundButton.textContent=tr(state.sound?'on':'off');soundButton.classList.toggle('is-active',state.sound);
   document.querySelector('#app-version').textContent=`VERSION ${APP_VERSION}`;
+  document.querySelector('#modes-kicker').textContent=tr('chooseRun');document.querySelector('#modes-title').textContent=tr('modes');
+  document.querySelector('#full-mode-button').querySelector('strong').textContent=tr('fullGame');document.querySelector('#full-mode-button').querySelector('small').textContent=tr('fullGameSub');
+  document.querySelector('#endless-mode-button').querySelector('strong').textContent=tr('endless');document.querySelector('#endless-mode-button').querySelector('small').textContent=tr('endlessSub');document.querySelector('#modes-back-button').textContent=tr('back');
   document.querySelectorAll('.lang-button').forEach(b=>b.classList.toggle('is-active',b.dataset.lang===state.language));
 }
 function playMenuMusic(){if(state.sound)menuMusic.play().catch(()=>{})}
-function showMenu(){menuScreen.classList.remove('is-hidden');settingsScreen.classList.add('is-hidden');leaderboardScreen.classList.add('is-hidden');refreshBestUI();playMenuMusic()}
-function showSettings(){menuScreen.classList.add('is-hidden');settingsScreen.classList.remove('is-hidden');leaderboardScreen.classList.add('is-hidden');playMenuMusic()}
+const modesScreen=document.querySelector('#modes-screen');
+function hideScreens(){menuScreen.classList.add('is-hidden');settingsScreen.classList.add('is-hidden');leaderboardScreen.classList.add('is-hidden');modesScreen.classList.add('is-hidden')}
+function showMenu(){hideScreens();menuScreen.classList.remove('is-hidden');refreshBestUI();playMenuMusic()}
+function showSettings(){hideScreens();settingsScreen.classList.remove('is-hidden');playMenuMusic()}
+function showModes(){hideScreens();modesScreen.classList.remove('is-hidden');playMenuMusic()}
 async function showLeaderboard(){
-  menuScreen.classList.add('is-hidden');settingsScreen.classList.add('is-hidden');leaderboardScreen.classList.remove('is-hidden');playMenuMusic();
+  hideScreens();leaderboardScreen.classList.remove('is-hidden');playMenuMusic();
   const list=document.querySelector('#leaderboard-list'),status=document.querySelector('#leaderboard-status');list.replaceChildren();status.textContent=tr('loading');
   try{const response=await fetch(`${TELEGRAM_LEADERBOARD_URL}?league=${state.league}`);const data=await response.json();if(!response.ok)throw Error('leaderboard');
     if(!data.leaderboard.length){const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
@@ -113,7 +119,11 @@ async function showLeaderboard(){
     status.textContent=`${data.league} LEAGUE`;
   }catch{status.textContent='OFFLINE';const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
 }
-document.querySelector('#start-button').addEventListener('click',()=>{requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;menuScreen.classList.add('is-hidden');reset();playClip(levelCheerAudio,.34,1)});
+function startMode(mode){requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;hideScreens();state.mode=mode;reset();playClip(levelCheerAudio,.34,1)}
+document.querySelector('#start-button').addEventListener('click',showModes);
+document.querySelector('#full-mode-button').addEventListener('click',()=>startMode('full'));
+document.querySelector('#endless-mode-button').addEventListener('click',()=>startMode('endless'));
+document.querySelector('#modes-back-button').addEventListener('click',showMenu);
 document.querySelector('#leaderboard-button').addEventListener('click',showLeaderboard);
 document.querySelector('#settings-button').addEventListener('click',showSettings);
 document.querySelector('#back-button').addEventListener('click',showMenu);
@@ -145,7 +155,9 @@ function configureDifficulty(){
   if(distance<.56){baseWidth=.29;state.markerSpeed=.60;state.shotValue=2;state.difficulty='CLOSE RANGE'}
   else if(distance<.82){baseWidth=.20;state.markerSpeed=.78;state.shotValue=2;state.difficulty='MID RANGE'}
   else{baseWidth=.12;state.markerSpeed=1.02;state.shotValue=3;state.difficulty='3 POINTER'}
-  state.targetWidth=Math.max(.045,baseWidth*(1-(state.level-1)*.055));
+  const endlessScale=state.mode==='endless'?Math.max(.34,1-state.endlessDifficulty*.01):1;
+  state.targetWidth=Math.max(.035,baseWidth*(1-(state.level-1)*.055)*endlessScale);
+  if(state.mode==='endless')state.markerSpeed*=1+state.endlessDifficulty*.01;
   const margin=state.targetWidth/2+.035;state.target=margin+Math.random()*(1-margin*2);
   state.targetDirection=Math.random()<.5?-1:1;
 }
@@ -186,6 +198,7 @@ function drawScoreboard(){
   const sw=W*.50,sh=sw*(450/1660),sx=W/2-sw/2,sy=H*.145;
   if(scoreboardArt.complete&&scoreboardArt.naturalWidth)ctx.drawImage(scoreboardArt,sx,sy,sw,sh);
   else roundRect(sx,sy,sw,sh,6,'rgba(2,4,7,.9)','#57ddff');
+  if(state.mode==='endless'){text(tr('endless'),W/2,sy+sh*.42,Math.max(10,sh*.28),'950','#ff713d');text(`${tr('misses')} ${state.endlessMisses}/3`,W/2,sy+sh*.75,Math.max(6,sh*.13),'900','#8deeff');return}
   const seconds=Math.max(0,Math.ceil(state.levelTime)),clock=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`,dh=sh*.48;
   let total=0;for(const c of clock)total+=c===':'?dh*.56*.38:dh*.56;total+=(clock.length-1)*dh*.10;
   let x=W/2-total/2,y=sy+sh*.27;for(const c of clock){const used=sevenDigit(c,x,y,dh);x+=used+dh*.10}
@@ -205,7 +218,7 @@ function release() {
   state.trail=[];
   tone(240,.12,'triangle',.04); haptic('light');
 }
-function reset(){ Object.assign(state,{score:state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null}); randomizeShot(); }
+function reset(){ Object.assign(state,{score:state.mode==='full'&&state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,endlessShots:0,endlessMisses:0,endlessDifficulty:0}); randomizeShot(); }
 async function syncBestScore(final=false){
   if(final)finalRankRequested=true;
   if(bestScoreSyncInFlight||!telegram?.initData||(!finalRankRequested&&state.score<=lastServerBest))return;
@@ -233,6 +246,12 @@ function finishShot(){
     state.streak=0; state.message=state.startPower<.6?'TOO EARLY':'OFF TARGET'; state.sub='Reset. Breathe. Shoot again.';
     haptic('heavy');
   }
+  if(state.mode==='endless'){
+    state.endlessShots++;state.endlessDifficulty++;
+    if(!state.hit)state.endlessMisses++;
+    configureDifficulty();
+    if(state.endlessMisses>=3){state.phase='over';state.gameStarted=false;state.gameOverTime=7;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best);refreshBestUI();syncBestScore(true);return}
+  }
   state.phase='result'; state.messageTime=.08;
 }
 function flightPosition(t=state.flightT){
@@ -247,7 +266,7 @@ function startBounce(){
 }
 function update(dt){
   state.time+=dt;
-  if(state.gameStarted&&state.phase!=='over'){
+  if(state.mode==='full'&&state.gameStarted&&state.phase!=='over'){
     state.levelTime-=dt;
     if(state.levelTime<=0){
       playClip(buzzerAudio,.58,1);
@@ -263,8 +282,8 @@ function update(dt){
     state.gameOverTime-=dt;
     if(state.gameOverTime<=0){reset();showMenu()}
   }
-  if(state.level>=4&&(state.phase==='ready'||state.phase==='aim')){
-    const zoneSpeed=.035+(state.level-4)*.020,margin=state.targetWidth/2+.025;
+  if((state.level>=4||state.mode==='endless')&&(state.phase==='ready'||state.phase==='aim')){
+    const zoneSpeed=(state.mode==='endless'?.035+state.endlessDifficulty*.010:.035+(state.level-4)*.020),margin=state.targetWidth/2+.025;
     state.target+=state.targetDirection*zoneSpeed*dt;
     if(state.target>=1-margin){state.target=1-margin;state.targetDirection=-1}
     if(state.target<=margin){state.target=margin;state.targetDirection=1}
@@ -351,6 +370,7 @@ function hud(){
 function levelIntroOverlay(){
   if(state.phase!=='levelIntro')return;
   ctx.fillStyle='rgba(2,8,18,.50)';ctx.fillRect(0,0,W,H);
+  if(state.mode==='endless'){text(tr('endless'),W/2,H*.49,29,'950','#ff713d');text(tr('endlessReady'),W/2,H*.57,11,'800','rgba(255,255,255,.76)');text(tr('tapStart'),W/2,H*.63,11,'800','rgba(255,255,255,.68)');return}
   text(tr('level'),W/2,H*.49,14,'900','#7ceaff');
   text(String(state.level),W/2,H*.555,62,'900','#fff');
   text(tr('tapStart'),W/2,H*.63,11,'800','rgba(255,255,255,.68)');
@@ -358,6 +378,11 @@ function levelIntroOverlay(){
 function gameOverOverlay(){
   if(state.phase!=='over')return;
   ctx.fillStyle='rgba(2,8,18,.76)';ctx.fillRect(0,0,W,H);
+  if(state.mode==='endless'){
+    text(tr('endlessOver'),W/2,H*.42,13,'900','#75e8ff');text(String(state.score),W/2,H*.485,54,'900','#fff');
+    text(`${tr('misses')}  ${state.endlessMisses}/3`,W/2,H*.54,13,'900','#ff9b55');text(`${tr('best')}  ${String(state.best).padStart(3,'0')}`,W/2,H*.59,17,'900','#75e8ff');
+    text(`${tr('returning')} · ${Math.max(1,Math.ceil(state.gameOverTime))}`,W/2,H*.65,10,'800','rgba(255,255,255,.55)');return
+  }
   text(tr('complete'),W/2,H*.42,12,'900','#75e8ff');
   text(String(state.score),W/2,H*.485,54,'900',state.score>=888?'#64ffb2':'#fff');
   text(state.score>=888?tr('conquered'):tr('final'),W/2,H*.535,14,'900',state.score>=888?'#ff9b55':'rgba(255,255,255,.68)');
