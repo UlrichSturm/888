@@ -1,7 +1,7 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
-const APP_VERSION = '1.0.4+4';
+const APP_VERSION = '1.0.5+5';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
 const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
 const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
@@ -88,13 +88,13 @@ const state = {
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
   language: localStorage.getItem('basket888-language')||'en', finalRank: null, league: 888, mode: 'full', endlessShots: 0, endlessMisses: 0, endlessDifficulty: 0,
-  arcScene: 0, arcAttempt: 0, arcSuccesses: 0, arcPath: [], arcFlightPath: [], arcFlightT: 0,
+  arcScene: 0, arcOrder: [], arcAttempt: 0, arcSuccesses: 0, arcPath: [], arcFlightPath: [], arcFlightT: 0,
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
 const copy={
-  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU',modes:'GAME MODES',chooseRun:'CHOOSE YOUR RUN',fullGame:'FULL GAME',fullGameSub:'10 LEVELS · 24 SEC EACH',endless:'ENDLESS',endlessSub:'3 MISSES · GET HARDER EVERY SHOT',endlessReady:'3 MISSES. HOW FAR CAN YOU GO?',endlessOver:'ENDLESS OVER',misses:'MISSES',arcShot:'ARC SHOT',arcShotSub:'DRAW THE PERFECT CURVE',arcReady:'TRACE THE ARC TO THE RIM',arcLearn:'FOLLOW THE GLOWING ARC',arcResult:'ARC SHOT COMPLETE',shots:'SHOTS'},
-  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ',modes:'РЕЖИМЫ ИГРЫ',chooseRun:'ВЫБЕРИТЕ РЕЖИМ',fullGame:'ПОЛНАЯ ИГРА',fullGameSub:'10 УРОВНЕЙ · ПО 24 СЕК',endless:'БЕСКОНЕЧНЫЙ',endlessSub:'3 ПРОМАХА · СЛОЖНЕЕ КАЖДЫЙ БРОСОК',endlessReady:'3 ПРОМАХА. КАК ДАЛЕКО ЗАЙДЁТЕ?',endlessOver:'КОНЕЦ ЗАБЕГА',misses:'ПРОМАХИ',arcShot:'БРОСОК ПО ДУГЕ',arcShotSub:'НАРИСУЙТЕ ИДЕАЛЬНУЮ ДУГУ',arcReady:'ПРОВЕДИТЕ ДУГУ К КОЛЬЦУ',arcLearn:'СЛЕДУЙТЕ СВЕТЯЩЕЙСЯ ДУГЕ',arcResult:'ДУГА ЗАВЕРШЕНА',shots:'БРОСКИ'}
+  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU',modes:'GAME MODES',chooseRun:'CHOOSE YOUR RUN',fullGame:'FULL GAME',fullGameSub:'10 LEVELS · 24 SEC EACH',endless:'ENDLESS',endlessSub:'3 MISSES · GET HARDER EVERY SHOT',endlessReady:'3 MISSES. HOW FAR CAN YOU GO?',endlessOver:'ENDLESS OVER',misses:'MISSES',arcShot:'ARC SHOT',arcShotSub:'DRAW THE PERFECT CURVE',arcReady:'TRACE THE ARC TO THE RIM',arcLearn:'FOLLOW THE GLOWING ARC',arcResult:'ARC SHOT COMPLETE',shots:'SHOTS',point:'POINT'},
+  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ',modes:'РЕЖИМЫ ИГРЫ',chooseRun:'ВЫБЕРИТЕ РЕЖИМ',fullGame:'ПОЛНАЯ ИГРА',fullGameSub:'10 УРОВНЕЙ · ПО 24 СЕК',endless:'БЕСКОНЕЧНЫЙ',endlessSub:'3 ПРОМАХА · СЛОЖНЕЕ КАЖДЫЙ БРОСОК',endlessReady:'3 ПРОМАХА. КАК ДАЛЕКО ЗАЙДЁТЕ?',endlessOver:'КОНЕЦ ЗАБЕГА',misses:'ПРОМАХИ',arcShot:'БРОСОК ПО ДУГЕ',arcShotSub:'НАРИСУЙТЕ ИДЕАЛЬНУЮ ДУГУ',arcReady:'ПРОВЕДИТЕ ДУГУ К КОЛЬЦУ',arcLearn:'СЛЕДУЙТЕ СВЕТЯЩЕЙСЯ ДУГЕ',arcResult:'ДУГА ЗАВЕРШЕНА',shots:'БРОСКИ',point:'ТОЧКА'}
 };
 const tr=key=>copy[state.language][key];
 function refreshBestUI(){document.querySelector('#menu-best-score').textContent=String(state.best).padStart(3,'0')}
@@ -208,7 +208,7 @@ function drawScoreboard(){
   const sw=W*.50,sh=sw*(450/1660),sx=W/2-sw/2,sy=H*.145;
   if(scoreboardArt.complete&&scoreboardArt.naturalWidth)ctx.drawImage(scoreboardArt,sx,sy,sw,sh);
   else roundRect(sx,sy,sw,sh,6,'rgba(2,4,7,.9)','#57ddff');
-  if(state.mode==='arc'){text(tr('arcShot'),W/2,sy+sh*.42,Math.max(10,sh*.28),'950','#ff713d');text(`${tr('shots')} ${Math.min(state.arcAttempt+1,3)}/3`,W/2,sy+sh*.75,Math.max(6,sh*.13),'900','#8deeff');return}
+  if(state.mode==='arc'){text(tr('arcShot'),W/2,sy+sh*.42,Math.max(10,sh*.28),'950','#ff713d');text(`${state.arcScene+1}/5  ·  ${tr('shots')} ${Math.min(state.arcAttempt+1,3)}/3`,W/2,sy+sh*.75,Math.max(6,sh*.13),'900','#8deeff');return}
   if(state.mode==='endless'){text(tr('endless'),W/2,sy+sh*.42,Math.max(10,sh*.28),'950','#ff713d');text(`${tr('misses')} ${state.endlessMisses}/3`,W/2,sy+sh*.75,Math.max(6,sh*.13),'900','#8deeff');return}
   const seconds=Math.max(0,Math.ceil(state.levelTime)),clock=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`,dh=sh*.48;
   let total=0;for(const c of clock)total+=c===':'?dh*.56*.38:dh*.56;total+=(clock.length-1)*dh*.10;
@@ -230,7 +230,7 @@ function release() {
   state.trail=[];
   tone(240,.12,'triangle',.04); haptic('light');
 }
-function arcScene(){return arcScenes[state.arcScene]}
+function arcScene(){return arcScenes[state.arcOrder[state.arcScene]??0]}
 function arcStart(){return{x:W*arcScene().ball[0],y:H*arcScene().ball[1]}}
 function arcHoop(){return{x:W*arcScene().hoop[0],y:H*arcScene().hoop[1]}}
 function cubic(a,b,c,d,t){const u=1-t;return{x:u*u*u*a.x+3*u*u*t*b.x+3*u*t*t*c.x+t*t*t*d.x,y:u*u*u*a.y+3*u*u*t*b.y+3*u*t*t*c.y+t*t*t*d.y}}
@@ -241,12 +241,15 @@ function finishArcAttempt(hit){
   state.arcAttempt++;state.arcPath=[];state.hit=hit;
   if(hit){state.arcSuccesses++;state.score+=3;state.best=Math.max(state.best,state.score);localStorage.setItem('basket888-best',state.best);syncBestScore();state.message='BUCKET +3';state.sub='Clean curve'}
   else {state.message='OFF ARC';state.sub='Find the line to the rim'}
-  if(state.arcAttempt>=3){state.phase='over';state.gameStarted=false;state.gameOverTime=7;state.best=Math.max(state.best,state.score);refreshBestUI();syncBestScore(true);return}
+  if(state.arcAttempt>=3){
+    if(state.arcScene<arcScenes.length-1){state.arcScene++;state.arcAttempt=0;const start=arcStart();state.spawnX=start.x/W;state.spawnY=start.y/H;state.phase='levelIntro';state.gameStarted=false;state.message=tr('arcReady');state.sub=`${tr('shots')} ${state.arcScene+1}/5`;return}
+    state.phase='over';state.gameStarted=false;state.gameOverTime=7;state.best=Math.max(state.best,state.score);refreshBestUI();syncBestScore(true);return
+  }
   state.phase='result';state.messageTime=.75;
 }
 function validateArc(path){
   const start=arcStart(),hoop=arcHoop();if(path.length<9||Math.hypot(path[0].x-start.x,path[0].y-start.y)>Math.max(32,W*.07)||Math.hypot(path.at(-1).x-hoop.x,path.at(-1).y-hoop.y)>Math.max(34,W*.09))return false;
-  let previous=0;for(let i=1;i<path.length;i+=Math.max(1,Math.floor(path.length/18))){const closest=closestArcPoint(path[i]);if(closest.distance>Math.max(36,W*.115)||closest.t+.09<previous)return false;previous=Math.max(previous,closest.t)}return previous>.78;
+  let previous=0,hasLift=false;for(let i=1;i<path.length;i+=Math.max(1,Math.floor(path.length/18))){const point=path[i],closest=closestArcPoint(point),straightY=start.y+(hoop.y-start.y)*closest.t;if(closest.distance>Math.max(28,W*.075)||closest.t+.07<previous)return false;if(closest.t>.25&&closest.t<.75&&point.y<straightY-H*.12)hasLift=true;previous=Math.max(previous,closest.t)}return hasLift&&previous>.82;
 }
 function beginArc(event){
   if(state.phase==='levelIntro'){begin();return}
@@ -260,8 +263,8 @@ function releaseArc(event){
   if(validateArc(state.arcPath)){state.arcFlightPath=[...state.arcPath];state.arcFlightT=0;state.phase='arcFlight';swish()}else finishArcAttempt(false);return true;
 }
 function reset(){
-  if(state.mode==='arc')state.arcScene=Math.floor(Math.random()*arcScenes.length);
-  Object.assign(state,{score:state.mode==='full'&&state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,endlessShots:0,endlessMisses:0,endlessDifficulty:0,arcAttempt:0,arcSuccesses:0,arcPath:[],arcFlightPath:[],arcFlightT:0});
+  const shuffledArcOrder=[...arcScenes.keys()].sort(()=>Math.random()-.5);
+  Object.assign(state,{score:state.mode==='full'&&state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,endlessShots:0,endlessMisses:0,endlessDifficulty:0,arcScene:0,arcOrder:state.mode==='arc'?shuffledArcOrder:state.arcOrder,arcAttempt:0,arcSuccesses:0,arcPath:[],arcFlightPath:[],arcFlightT:0});
   if(state.mode==='arc'){const start=arcStart();state.spawnX=start.x/W;state.spawnY=start.y/H;configureDifficulty()}else randomizeShot();
 }
 async function syncBestScore(final=false){
@@ -407,7 +410,7 @@ function hud(){
   text(String(state.league),slashX+slashWidth+gap,hudY+7,29,'900','#ff7b39','left');
   text(tr('best'),W-112,hudY-14,9,'800','rgba(255,255,255,.5)','left');
   text(String(state.best).padStart(3,'0'),W-112,hudY+7,25,'900','#fff','left');
-  if(state.mode==='arc'){text(`${tr('shots')} ${Math.min(state.arcAttempt+1,3)}/3`,W/2,hudY-12,10,'900','#ffb15e');return}
+  if(state.mode==='arc'){text(`${state.arcScene+1}/5 · ${tr('shots')} ${Math.min(state.arcAttempt+1,3)}/3`,W/2,hudY-12,10,'900','#ffb15e');return}
   if(state.phase==='levelIntro'||state.phase==='over')return;
   if(state.streak>1){
     roundRect(W/2-34,hudY-14,68,29,15,'rgba(255,102,51,.18)','rgba(255,126,67,.55)');
@@ -422,7 +425,7 @@ function hud(){
 function levelIntroOverlay(){
   if(state.phase!=='levelIntro')return;
   ctx.fillStyle='rgba(2,8,18,.50)';ctx.fillRect(0,0,W,H);
-  if(state.mode==='arc'){text(tr('arcShot'),W/2,H*.49,27,'950','#ff9b55');text(tr('arcLearn'),W/2,H*.57,11,'800','rgba(255,255,255,.76)');text(tr('tapStart'),W/2,H*.63,11,'800','rgba(255,255,255,.68)');return}
+  if(state.mode==='arc'){text(tr('arcShot'),W/2,H*.47,27,'950','#ff9b55');text(`${tr('point')} ${state.arcScene+1} / 5`,W/2,H*.525,12,'900','#75e8ff');text(state.arcScene===0?tr('arcLearn'):tr('arcReady'),W/2,H*.575,11,'800','rgba(255,255,255,.76)');text(tr('tapStart'),W/2,H*.635,11,'800','rgba(255,255,255,.68)');return}
   if(state.mode==='endless'){text(tr('endless'),W/2,H*.49,29,'950','#ff713d');text(tr('endlessReady'),W/2,H*.57,11,'800','rgba(255,255,255,.76)');text(tr('tapStart'),W/2,H*.63,11,'800','rgba(255,255,255,.68)');return}
   text(tr('level'),W/2,H*.49,14,'900','#7ceaff');
   text(String(state.level),W/2,H*.555,62,'900','#fff');
@@ -431,7 +434,7 @@ function levelIntroOverlay(){
 function gameOverOverlay(){
   if(state.phase!=='over')return;
   ctx.fillStyle='rgba(2,8,18,.76)';ctx.fillRect(0,0,W,H);
-  if(state.mode==='arc'){text(tr('arcResult'),W/2,H*.42,13,'900','#75e8ff');text(`${state.arcSuccesses}/3`,W/2,H*.485,54,'900',state.arcSuccesses===3?'#64ffb2':'#fff');text(`${tr('score')}  ${String(state.score).padStart(3,'0')}`,W/2,H*.54,14,'900','#ff9b55');text(`${tr('best')}  ${String(state.best).padStart(3,'0')}`,W/2,H*.59,17,'900','#75e8ff');text(`${tr('returning')} · ${Math.max(1,Math.ceil(state.gameOverTime))}`,W/2,H*.65,10,'800','rgba(255,255,255,.55)');return}
+  if(state.mode==='arc'){text(tr('arcResult'),W/2,H*.42,13,'900','#75e8ff');text(`${state.arcSuccesses}/15`,W/2,H*.485,54,'900',state.arcSuccesses===15?'#64ffb2':'#fff');text(`${tr('score')}  ${String(state.score).padStart(3,'0')}`,W/2,H*.54,14,'900','#ff9b55');text(`${tr('best')}  ${String(state.best).padStart(3,'0')}`,W/2,H*.59,17,'900','#75e8ff');text(`${tr('returning')} · ${Math.max(1,Math.ceil(state.gameOverTime))}`,W/2,H*.65,10,'800','rgba(255,255,255,.55)');return}
   if(state.mode==='endless'){
     text(tr('endlessOver'),W/2,H*.42,13,'900','#75e8ff');text(String(state.score),W/2,H*.485,54,'900','#fff');
     text(`${tr('misses')}  ${state.endlessMisses}/3`,W/2,H*.54,13,'900','#ff9b55');text(`${tr('best')}  ${String(state.best).padStart(3,'0')}`,W/2,H*.59,17,'900','#75e8ff');
@@ -453,7 +456,7 @@ function idleDribble(){
 function draw(){
   ctx.save();ctx.translate((Math.random()-.5)*state.shake,(Math.random()-.5)*state.shake);court();drawScoreboard();
   if(state.phase!=='levelIntro'&&state.phase!=='over')player();
-  if(state.mode==='arc'&&state.arcAttempt===0&&(state.phase==='ready'||state.phase==='arcDraw')){ctx.save();ctx.strokeStyle='rgba(103,232,255,.38)';ctx.lineWidth=Math.max(24,W*.105);ctx.lineCap='round';ctx.beginPath();for(let i=0;i<=40;i++){const p=arcCurve(i/40);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y)}ctx.stroke();ctx.strokeStyle='#72ffe4';ctx.lineWidth=2.5;ctx.shadowColor='#4cf7ff';ctx.shadowBlur=14;ctx.stroke();ctx.restore()}
+  if(state.mode==='arc'&&state.arcScene===0&&state.arcAttempt===0&&(state.phase==='ready'||state.phase==='arcDraw')){ctx.save();ctx.strokeStyle='rgba(103,232,255,.38)';ctx.lineWidth=Math.max(24,W*.105);ctx.lineCap='round';ctx.beginPath();for(let i=0;i<=40;i++){const p=arcCurve(i/40);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y)}ctx.stroke();ctx.strokeStyle='#72ffe4';ctx.lineWidth=2.5;ctx.shadowColor='#4cf7ff';ctx.shadowBlur=14;ctx.stroke();ctx.restore()}
   if(state.mode==='arc'&&state.arcPath.length>1){ctx.save();ctx.strokeStyle=state.phase==='arcDraw'?'#fff':'rgba(255,109,73,.7)';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=5;ctx.shadowColor='#5cecff';ctx.shadowBlur=10;ctx.beginPath();state.arcPath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.restore()}
   if(state.trail.length>1){ctx.save();ctx.lineCap='round';for(let i=1;i<state.trail.length;i++){const a=state.trail[i-1],b=state.trail[i];ctx.globalAlpha=b.life*.55;ctx.strokeStyle='#67e8ff';ctx.lineWidth=Math.max(1,7*b.life);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}ctx.restore()}
   if(state.phase==='arcFlight'){
