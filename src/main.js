@@ -1,7 +1,7 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
-const APP_VERSION = '1.0.6+6';
+const APP_VERSION = '1.0.7+7';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
 const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
 const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
@@ -47,8 +47,8 @@ function haptic(type = 'light') {
 
 function requestTelegramFullscreen() {
   if (!telegram) return;
-  telegram.expand();
-  telegram.requestFullscreen?.();
+  try { telegram.expand?.(); } catch {}
+  try { telegram.requestFullscreen?.(); } catch {}
 }
 
 function ballRadiusForDepth(y = state.spawnY) {
@@ -70,6 +70,7 @@ const arcScenes = [
   {src:'assets/arc-hall-04.webp',ball:[.15,.81],hoop:[.66,.45]},
   {src:'assets/arc-hall-05.webp',ball:[.70,.80],hoop:[.45,.34]},
 ].map(scene=>({...scene,image:Object.assign(new Image(),{src:scene.src})}));
+const rhythmBackground = new Image(); rhythmBackground.src = 'assets/modes/rhythm-court.webp';
 const ballArt = new Image(); ballArt.src = 'assets/ball-premium.png';
 const scoreboardArt = new Image(); scoreboardArt.src = 'assets/ui/scoreboard-panel-v2.png';
 const swishAudio = new Audio('assets/audio/net-swish-v3.mp3'); swishAudio.preload = 'auto';
@@ -89,12 +90,14 @@ const state = {
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
   language: localStorage.getItem('basket888-language')||'en', finalRank: null, league: 888, mode: 'full', endlessShots: 0, endlessMisses: 0, endlessDifficulty: 0,
   arcScene: 0, arcOrder: [], arcAttempt: 0, arcSuccesses: 0, arcPath: [], arcFlightPath: [], arcFlightT: 0, arcWillScore: false,
+  rhythmScore: 0, rhythmBest: Number(localStorage.getItem('basket888-rhythm-best') || 0), rhythmInterval: 0, rhythmLastTap: 0,
+  rhythmTolerance: 0, rhythmFailedAt: 0, rhythmPulse: 0, rhythmFall: null,
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
 const copy={
-  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU',modes:'GAME MODES',chooseRun:'CHOOSE YOUR RUN',fullGame:'FULL GAME',fullGameSub:'10 LEVELS · 24 SEC EACH',endless:'ENDLESS',endlessSub:'3 MISSES · GET HARDER EVERY SHOT',endlessReady:'3 MISSES. HOW FAR CAN YOU GO?',endlessOver:'ENDLESS OVER',misses:'MISSES',arcShot:'ARC SHOT',arcShotSub:'DRAW THE PERFECT CURVE',arcReady:'TRACE THE ARC TO THE RIM',arcLearn:'FOLLOW THE GLOWING ARC',arcResult:'ARC SHOT COMPLETE',shots:'SHOTS',point:'POINT'},
-  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ',modes:'РЕЖИМЫ ИГРЫ',chooseRun:'ВЫБЕРИТЕ РЕЖИМ',fullGame:'ПОЛНАЯ ИГРА',fullGameSub:'10 УРОВНЕЙ · ПО 24 СЕК',endless:'БЕСКОНЕЧНЫЙ',endlessSub:'3 ПРОМАХА · СЛОЖНЕЕ КАЖДЫЙ БРОСОК',endlessReady:'3 ПРОМАХА. КАК ДАЛЕКО ЗАЙДЁТЕ?',endlessOver:'КОНЕЦ ЗАБЕГА',misses:'ПРОМАХИ',arcShot:'БРОСОК ПО ДУГЕ',arcShotSub:'НАРИСУЙТЕ ИДЕАЛЬНУЮ ДУГУ',arcReady:'ПРОВЕДИТЕ ДУГУ К КОЛЬЦУ',arcLearn:'СЛЕДУЙТЕ СВЕТЯЩЕЙСЯ ДУГЕ',arcResult:'ДУГА ЗАВЕРШЕНА',shots:'БРОСКИ',point:'ТОЧКА'}
+  en:{start:'START',settings:'SETTINGS',leaderboard:'LEADERBOARD',top100:'TOP 100',loading:'LOADING',noScores:'NO SCORES YET',yourBest:'YOUR BEST',sound:'SOUND',language:'LANGUAGE',back:'BACK',on:'ON',off:'OFF',level:'LEVEL',tapStart:'TAP TO START',hold:'HOLD TO SHOOT',best:'BEST',score:'SCORE',complete:'10 LEVELS COMPLETE',final:'FINAL SCORE',worldRank:'WORLD RANK',conquered:'888 CONQUERED',again:'TAP TO MENU',returning:'RETURNING TO MENU',modes:'GAME MODES',chooseRun:'CHOOSE YOUR RUN',fullGame:'FULL GAME',fullGameSub:'10 LEVELS · 24 SEC EACH',endless:'ENDLESS',endlessSub:'3 MISSES · GET HARDER EVERY SHOT',endlessReady:'3 MISSES. HOW FAR CAN YOU GO?',endlessOver:'ENDLESS OVER',misses:'MISSES',arcShot:'ARC SHOT',arcShotSub:'DRAW THE PERFECT CURVE',arcReady:'TRACE THE ARC TO THE RIM',arcLearn:'FOLLOW THE GLOWING ARC',arcResult:'ARC SHOT COMPLETE',shots:'SHOTS',point:'POINT',rhythm:'RHYTHM DRIBBLE',rhythmSub:'FIND YOUR BEAT',setRhythm:'TAP TWICE TO SET THE RHYTHM',keepRhythm:'KEEP THE RHYTHM',rhythmLost:'RHYTHM LOST',bounces:'BOUNCES',rhythmBest:'RHYTHM BEST'},
+  ru:{start:'СТАРТ',settings:'НАСТРОЙКИ',leaderboard:'РЕЙТИНГ',top100:'ТОП 100',loading:'ЗАГРУЗКА',noScores:'ПОКА НЕТ РЕЗУЛЬТАТОВ',yourBest:'ВАШ РЕКОРД',sound:'ЗВУК',language:'ЯЗЫК',back:'НАЗАД',on:'ВКЛ',off:'ВЫКЛ',level:'УРОВЕНЬ',tapStart:'НАЖМИТЕ, ЧТОБЫ НАЧАТЬ',hold:'УДЕРЖИВАЙТЕ ДЛЯ БРОСКА',best:'РЕКОРД',score:'СЧЁТ',complete:'10 УРОВНЕЙ ЗАВЕРШЕНЫ',final:'ИТОГОВЫЙ СЧЁТ',worldRank:'МИРОВОЕ МЕСТО',conquered:'888 ПОКОРЕНО',again:'НАЖМИТЕ ДЛЯ МЕНЮ',returning:'ВОЗВРАЩЕНИЕ В МЕНЮ',modes:'РЕЖИМЫ ИГРЫ',chooseRun:'ВЫБЕРИТЕ РЕЖИМ',fullGame:'ПОЛНАЯ ИГРА',fullGameSub:'10 УРОВНЕЙ · ПО 24 СЕК',endless:'БЕСКОНЕЧНЫЙ',endlessSub:'3 ПРОМАХА · СЛОЖНЕЕ КАЖДЫЙ БРОСОК',endlessReady:'3 ПРОМАХА. КАК ДАЛЕКО ЗАЙДЁТЕ?',endlessOver:'КОНЕЦ ЗАБЕГА',misses:'ПРОМАХИ',arcShot:'БРОСОК ПО ДУГЕ',arcShotSub:'НАРИСУЙТЕ ИДЕАЛЬНУЮ ДУГУ',arcReady:'ПРОВЕДИТЕ ДУГУ К КОЛЬЦУ',arcLearn:'СЛЕДУЙТЕ СВЕТЯЩЕЙСЯ ДУГЕ',arcResult:'ДУГА ЗАВЕРШЕНА',shots:'БРОСКИ',point:'ТОЧКА',rhythm:'НАБИВАНИЕ В РИТМ',rhythmSub:'ПОЙМАЙТЕ СВОЙ РИТМ',setRhythm:'ДВА УДАРА ЗАДАДУТ РИТМ',keepRhythm:'ДЕРЖИТЕ РИТМ',rhythmLost:'РИТМ СБИТ',bounces:'УДАРЫ',rhythmBest:'РЕКОРД РИТМА'}
 };
 const tr=key=>copy[state.language][key];
 function refreshBestUI(){document.querySelector('#menu-best-score').textContent=String(state.best).padStart(3,'0')}
@@ -111,6 +114,7 @@ function applyLanguage(){
   document.querySelector('#full-mode-button').querySelector('strong').textContent=tr('fullGame');document.querySelector('#full-mode-button').querySelector('small').textContent=tr('fullGameSub');
   document.querySelector('#endless-mode-button').querySelector('strong').textContent=tr('endless');document.querySelector('#endless-mode-button').querySelector('small').textContent=tr('endlessSub');document.querySelector('#modes-back-button').textContent=tr('back');
   document.querySelector('#arc-mode-button').querySelector('strong').textContent=tr('arcShot');document.querySelector('#arc-mode-button').querySelector('small').textContent=tr('arcShotSub');
+  document.querySelector('#rhythm-mode-button').querySelector('strong').textContent=tr('rhythm');document.querySelector('#rhythm-mode-button').querySelector('small').textContent=tr('rhythmSub');
   document.querySelectorAll('.lang-button').forEach(b=>b.classList.toggle('is-active',b.dataset.lang===state.language));
 }
 function playMenuMusic(){if(state.sound)menuMusic.play().catch(()=>{})}
@@ -128,11 +132,12 @@ async function showLeaderboard(){
     status.textContent=`${data.league} LEAGUE`;
   }catch{status.textContent='OFFLINE';const item=document.createElement('li');item.className='leaderboard-empty';item.textContent=tr('noScores');list.append(item)}
 }
-function startMode(mode){requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;hideScreens();state.mode=mode;reset();playClip(levelCheerAudio,.34,1)}
+function startMode(mode){requestTelegramFullscreen();menuMusic.pause();menuMusic.currentTime=0;hideScreens();state.mode=mode;if(mode==='rhythm')resetRhythm();else reset();playClip(levelCheerAudio,.34,1)}
 document.querySelector('#start-button').addEventListener('click',showModes);
 document.querySelector('#full-mode-button').addEventListener('click',()=>startMode('full'));
 document.querySelector('#endless-mode-button').addEventListener('click',()=>startMode('endless'));
 document.querySelector('#arc-mode-button').addEventListener('click',()=>startMode('arc'));
+document.querySelector('#rhythm-mode-button').addEventListener('click',()=>startMode('rhythm'));
 document.querySelector('#modes-back-button').addEventListener('click',showMenu);
 document.querySelector('#leaderboard-button').addEventListener('click',showLeaderboard);
 document.querySelector('#settings-button').addEventListener('click',showSettings);
@@ -176,6 +181,7 @@ randomizeShot();
 function tone(freq, duration, type = 'sine', volume = .05, delay = 0) {
   if (!state.sound) return;
   audio ||= new (window.AudioContext || window.webkitAudioContext)();
+  if(audio.state==='suspended')audio.resume().catch(()=>{});
   const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + delay;
   o.type = type; o.frequency.setValueAtTime(freq, t); g.gain.setValueAtTime(volume, t);
   g.gain.exponentialRampToValueAtTime(.001, t + duration); o.connect(g).connect(audio.destination);
@@ -183,6 +189,12 @@ function tone(freq, duration, type = 'sine', volume = .05, delay = 0) {
 }
 function swish() {
   playClip(swishAudio,.41,1);
+}
+function playRhythmBounce(rate=1){
+  if(!state.sound)return;
+  playClip(dribbleAudio,.92,rate);
+  tone(86,.11,'sine',.14);
+  tone(172,.045,'triangle',.055,.008);
 }
 function playClip(source,volume=1,rate=1){
   if(!state.sound)return;
@@ -216,6 +228,7 @@ function drawScoreboard(){
   text(`${tr('level')} ${state.level}`,W/2,sy+sh*.82,Math.max(6,sh*.13),'900','#8deeff');
 }
 function begin() {
+  if(state.mode==='rhythm'){rhythmTap();return}
   if (state.phase === 'over') { reset(); showMenu(); return; }
   if (state.phase === 'levelIntro') { state.phase='ready';state.gameStarted=true;state.lastDribbleCycle=(state.time*1.55)%1;return; }
   if (state.phase !== 'ready') return;
@@ -248,9 +261,17 @@ function finishArcAttempt(hit){
   state.phase='result';state.messageTime=.75;
 }
 function validateArc(path){
-  const start=arcStart(),hoop=arcHoop(),end=path.at(-1);if(path.length<8||Math.hypot(path[0].x-start.x,path[0].y-start.y)>Math.max(32,W*.07)||Math.hypot(end.x-hoop.x,end.y-hoop.y)>Math.max(42,W*.12))return false;
-  let previous=0,hasLift=false;for(let i=1;i<path.length;i+=Math.max(1,Math.floor(path.length/18))){const point=path[i],closest=closestArcPoint(point),straightY=start.y+(hoop.y-start.y)*closest.t;if(closest.distance>Math.max(42,W*.12)||closest.t+.10<previous)return false;if(closest.t>.22&&closest.t<.78&&point.y<straightY-H*.075)hasLift=true;previous=Math.max(previous,closest.t)}
-  const tail=path[Math.max(0,path.length-4)],entry={x:end.x-tail.x,y:end.y-tail.y},verticalEntry=entry.y>Math.max(12,H*.015)&&Math.abs(entry.x)<=entry.y*.58;return hasLift&&verticalEntry&&previous>.80;
+  const start=arcStart(),hoop=arcHoop(),end=path.at(-1);
+  if(path.length<6||Math.hypot(path[0].x-start.x,path[0].y-start.y)>Math.max(44,W*.10)||Math.hypot(end.x-hoop.x,end.y-hoop.y)>Math.max(58,W*.16))return false;
+  const direct=Math.hypot(hoop.x-start.x,hoop.y-start.y),length=path.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-path[i].x,p.y-path[i].y),0);
+  const apex=Math.min(...path.slice(1,-1).map(point=>point.y));
+  // It only needs to rise visibly above the rim and be longer than a direct line.
+  // This deliberately tolerates different, natural-looking hand-drawn arcs.
+  const hasArc=length>direct*1.025 && apex<Math.min(start.y,hoop.y)-H*.035;
+  const tail=path[Math.max(0,path.length-5)],entry={x:end.x-tail.x,y:end.y-tail.y};
+  // A generous entry window rewards a clearly downward finish without demanding a pixel-perfect stroke.
+  const verticalEntry=entry.y>Math.max(7,H*.009)&&Math.abs(entry.x)<=entry.y*1.15;
+  return hasArc&&verticalEntry;
 }
 function arcImpactPoint(path,willScore){
   const hoop=arcHoop();if(willScore)return hoop;
@@ -269,6 +290,42 @@ function releaseArc(event){
   if(Math.hypot(flightPath.at(-1).x-impact.x,flightPath.at(-1).y-impact.y)>3)flightPath.push(impact);
   state.arcFlightPath=flightPath;state.arcFlightT=0;state.phase='arcFlight';return true;
 }
+function resetRhythm(){
+  Object.assign(state,{score:0,phase:'rhythmReady',rhythmScore:0,rhythmInterval:0,rhythmLastTap:0,rhythmTolerance:0,rhythmFailedAt:0,rhythmPulse:0,rhythmFall:null,trail:[],message:tr('setRhythm'),sub:''});
+}
+function rhythmFloor(){return H*.80}
+function rhythmBallPosition(){
+  const x=W*.5, floor=rhythmFloor();
+  if(state.phase==='rhythmOver'&&state.rhythmFall)return state.rhythmFall;
+  if(state.phase!=='rhythmPlaying'||!state.rhythmInterval){const lift=(1+Math.sin(state.time*3.4))*H*.018;return{x,y:floor-lift};}
+  const phase=Math.max(0,Math.min(1,(state.time-state.rhythmLastTap)/state.rhythmInterval));
+  return{x,y:floor-Math.sin(Math.PI*phase)*H*.17};
+}
+function failRhythm(){
+  if(state.phase==='rhythmOver')return;
+  const p=rhythmBallPosition();
+  state.phase='rhythmOver';state.rhythmFailedAt=state.time;state.rhythmFall={x:p.x,y:p.y,vx:(Math.random()<.5?-1:1)*W*.19,vy:-H*.12,bounces:0};
+  state.rhythmBest=Math.max(state.rhythmBest,state.rhythmScore);localStorage.setItem('basket888-rhythm-best',state.rhythmBest);
+  playClip(buzzerAudio,.34,1.18);tone(58,.16,'sawtooth',.09);haptic('heavy');state.shake=5;
+}
+function rhythmTap(){
+  if(state.phase==='rhythmOver'){if(state.time-state.rhythmFailedAt>.45)showModes();return}
+  if(state.phase==='rhythmReady'){
+    state.phase='rhythmPlaying';state.rhythmScore=1;state.score=1;state.rhythmLastTap=state.time;state.rhythmPulse=1;playRhythmBounce(1);haptic('light');return;
+  }
+  if(state.phase!=='rhythmPlaying')return;
+  const elapsed=state.time-state.rhythmLastTap;
+  if(!state.rhythmInterval){
+    if(elapsed<.07){failRhythm();return}
+    state.rhythmInterval=elapsed;state.rhythmTolerance=Math.max(.028,elapsed*.22);
+  }else{
+    if(Math.abs(elapsed-state.rhythmInterval)>state.rhythmTolerance){failRhythm();return}
+    state.rhythmInterval=state.rhythmInterval*.82+elapsed*.18;
+    state.rhythmTolerance=Math.max(.025,state.rhythmTolerance*.985);
+  }
+  state.rhythmLastTap=state.time;state.rhythmScore++;state.score=state.rhythmScore;state.rhythmPulse=1;
+  playRhythmBounce(Math.max(.82,Math.min(1.35,1/state.rhythmInterval*.48)));haptic('light');
+}
 function reset(){
   const shuffledArcOrder=[...arcScenes.keys()].sort(()=>Math.random()-.5);
   Object.assign(state,{score:state.mode==='full'&&state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,endlessShots:0,endlessMisses:0,endlessDifficulty:0,arcScene:0,arcOrder:state.mode==='arc'?shuffledArcOrder:state.arcOrder,arcAttempt:0,arcSuccesses:0,arcPath:[],arcFlightPath:[],arcFlightT:0,arcWillScore:false});
@@ -285,10 +342,10 @@ async function syncBestScore(final=false){
   }catch{/* A local best is kept when the player is offline. */}
   finally{bestScoreSyncInFlight=false;if(saved&&state.score>lastServerBest)syncBestScore(final)}
 }
-canvas.addEventListener('pointerdown', e=>{e.preventDefault();requestTelegramFullscreen();if(state.mode==='arc')beginArc(e);else begin()});
+canvas.addEventListener('pointerdown', e=>{e.preventDefault();requestTelegramFullscreen();if(state.mode==='rhythm')rhythmTap();else if(state.mode==='arc')beginArc(e);else begin()});
 canvas.addEventListener('pointermove',moveArc);canvas.addEventListener('pointerup',e=>{if(!releaseArc(e))release()});canvas.addEventListener('pointercancel',e=>{if(state.mode==='arc'&&state.phase==='arcDraw')finishArcAttempt(false)});canvas.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); if(!e.repeat)begin()} if(e.key.toLowerCase()==='m')state.sound=!state.sound });
-addEventListener('keyup',e=>{if(e.code==='Space')release()});
+addEventListener('keyup',e=>{if(e.code==='Space'&&state.mode!=='rhythm')release()});
 
 function finishShot(){
   if(state.hit){
@@ -321,6 +378,16 @@ function startBounce(){
 }
 function update(dt){
   state.time+=dt;
+  if(state.mode==='rhythm'){
+    state.rhythmPulse=Math.max(0,state.rhythmPulse-dt*3.6);
+    if(state.phase==='rhythmPlaying'&&state.rhythmInterval&&state.time-state.rhythmLastTap>state.rhythmInterval+state.rhythmTolerance)failRhythm();
+    if(state.phase==='rhythmOver'&&state.rhythmFall){
+      const b=state.rhythmFall;b.vy+=H*1.7*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;
+      const floor=rhythmFloor();
+      if(b.y>=floor&&b.bounces<2){b.y=floor;b.vy=-Math.abs(b.vy)*.44;b.vx*=.68;b.bounces++;playClip(dribbleAudio,.4,.78+b.bounces*.08)}
+    }
+    state.shake*=Math.pow(.02,dt);return;
+  }
   if(state.mode==='full'&&state.gameStarted&&state.phase!=='over'){
     state.levelTime-=dt;
     if(state.levelTime<=0){
@@ -461,6 +528,7 @@ function idleDribble(){
   return{x:W*state.spawnX,y:H*(state.spawnY-lift*.105)};
 }
 function draw(){
+  if(state.mode==='rhythm'){drawRhythm();return}
   ctx.save();ctx.translate((Math.random()-.5)*state.shake,(Math.random()-.5)*state.shake);court();drawScoreboard();
   if(state.phase!=='levelIntro'&&state.phase!=='over')player();
   if(state.mode==='arc'&&state.arcScene===0&&state.arcAttempt===0&&(state.phase==='ready'||state.phase==='arcDraw')){ctx.save();ctx.strokeStyle='rgba(103,232,255,.38)';ctx.lineWidth=Math.max(24,W*.105);ctx.lineCap='round';ctx.beginPath();for(let i=0;i<=40;i++){const p=arcCurve(i/40);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y)}ctx.stroke();ctx.strokeStyle='#72ffe4';ctx.lineWidth=2.5;ctx.shadowColor='#4cf7ff';ctx.shadowBlur=14;ctx.stroke();ctx.restore()}
@@ -481,5 +549,23 @@ function draw(){
     ball(d.x,d.y,ballRadiusForDepth());
   } else if(state.phase==='aim'||state.phase==='result') ball(W*state.spawnX,H*(state.spawnY-.105),ballRadiusForDepth());
   ctx.globalAlpha=1;hud();levelIntroOverlay();gameOverOverlay();ctx.restore();
+}
+function drawRhythm(){
+  ctx.save();ctx.translate((Math.random()-.5)*state.shake,(Math.random()-.5)*state.shake);
+  if(rhythmBackground.complete&&rhythmBackground.naturalWidth)ctx.drawImage(rhythmBackground,0,0,W,H);
+  else {const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#101333');g.addColorStop(1,'#071722');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+  const shade=ctx.createLinearGradient(0,0,0,H);shade.addColorStop(0,'rgba(3,8,24,.1)');shade.addColorStop(1,'rgba(3,8,24,.42)');ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
+  const hudY=H*.075;
+  text(tr('bounces'),24,hudY-14,9,'800','rgba(255,255,255,.58)','left');text(String(state.rhythmScore).padStart(3,'0'),24,hudY+8,30,'900','#fff','left');
+  text(tr('rhythmBest'),W-118,hudY-14,9,'800','rgba(255,255,255,.58)','left');text(String(state.rhythmBest).padStart(3,'0'),W-118,hudY+8,26,'900','#9aefff','left');
+  if(state.rhythmInterval)text(`${Math.round(60/state.rhythmInterval)} BPM`,W/2,hudY+2,14,'950','#ffb365');
+  const floor=rhythmFloor();ctx.save();ctx.globalAlpha=.75;ctx.strokeStyle='rgba(87,230,255,.52)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(W*.5,floor+20,W*.10,W*.018,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+  const p=rhythmBallPosition(),radius=Math.max(14,W*.05)*(1+state.rhythmPulse*.08);ball(p.x,p.y,radius);
+  if(state.phase==='rhythmReady'){text(tr('rhythm'),W/2,H*.64,24,'950','#fff');text(tr('setRhythm'),W/2,H*.69,11,'900','#91eaff');text(tr('tapStart'),W/2,H*.74,10,'800','rgba(255,255,255,.72)')}
+  else if(state.phase==='rhythmPlaying'){text(state.rhythmInterval?tr('keepRhythm'):tr('setRhythm'),W/2,H*.90,12,'950','#fff')}
+  else if(state.phase==='rhythmOver'){
+    ctx.fillStyle='rgba(1,6,16,.58)';ctx.fillRect(0,0,W,H);text(tr('rhythmLost'),W/2,H*.44,26,'950','#ff825f');text(`${tr('bounces')}  ${state.rhythmScore}`,W/2,H*.50,15,'900','#fff');text(`${tr('rhythmBest')}  ${state.rhythmBest}`,W/2,H*.545,13,'900','#9aefff');text(tr('tapStart'),W/2,H*.63,10,'800','rgba(255,255,255,.75)');
+  }
+  ctx.restore();
 }
 let last=performance.now();function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
