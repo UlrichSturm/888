@@ -1,7 +1,7 @@
 const canvas = document.querySelector('#game-canvas');
 const ctx = canvas.getContext('2d');
 const telegram = window.Telegram?.WebApp;
-const APP_VERSION = '1.0.5+5';
+const APP_VERSION = '1.0.6+6';
 const TELEGRAM_AUTH_URL = 'https://basketball888-api.ulrichsturm.workers.dev/auth/telegram';
 const TELEGRAM_SCORE_URL = 'https://basketball888-api.ulrichsturm.workers.dev/score';
 const TELEGRAM_LEADERBOARD_URL = 'https://basketball888-api.ulrichsturm.workers.dev/leaderboard';
@@ -88,7 +88,7 @@ const state = {
   shots: 0, hits: 0, sound: localStorage.getItem('basket888-sound')!=='off', lastDribbleCycle: 0,
   level: 1, levelTime: 24, gameStarted: false, targetDirection: 1, gameOverTime: 0,
   language: localStorage.getItem('basket888-language')||'en', finalRank: null, league: 888, mode: 'full', endlessShots: 0, endlessMisses: 0, endlessDifficulty: 0,
-  arcScene: 0, arcOrder: [], arcAttempt: 0, arcSuccesses: 0, arcPath: [], arcFlightPath: [], arcFlightT: 0,
+  arcScene: 0, arcOrder: [], arcAttempt: 0, arcSuccesses: 0, arcPath: [], arcFlightPath: [], arcFlightT: 0, arcWillScore: false,
 };
 let W = 0, H = 0, dpr = 1, audio;
 const menuScreen=document.querySelector('#menu-screen'),settingsScreen=document.querySelector('#settings-screen'),leaderboardScreen=document.querySelector('#leaderboard-screen');
@@ -248,8 +248,13 @@ function finishArcAttempt(hit){
   state.phase='result';state.messageTime=.75;
 }
 function validateArc(path){
-  const start=arcStart(),hoop=arcHoop();if(path.length<9||Math.hypot(path[0].x-start.x,path[0].y-start.y)>Math.max(32,W*.07)||Math.hypot(path.at(-1).x-hoop.x,path.at(-1).y-hoop.y)>Math.max(34,W*.09))return false;
-  let previous=0,hasLift=false;for(let i=1;i<path.length;i+=Math.max(1,Math.floor(path.length/18))){const point=path[i],closest=closestArcPoint(point),straightY=start.y+(hoop.y-start.y)*closest.t;if(closest.distance>Math.max(28,W*.075)||closest.t+.07<previous)return false;if(closest.t>.25&&closest.t<.75&&point.y<straightY-H*.12)hasLift=true;previous=Math.max(previous,closest.t)}return hasLift&&previous>.82;
+  const start=arcStart(),hoop=arcHoop(),end=path.at(-1);if(path.length<8||Math.hypot(path[0].x-start.x,path[0].y-start.y)>Math.max(32,W*.07)||Math.hypot(end.x-hoop.x,end.y-hoop.y)>Math.max(42,W*.12))return false;
+  let previous=0,hasLift=false;for(let i=1;i<path.length;i+=Math.max(1,Math.floor(path.length/18))){const point=path[i],closest=closestArcPoint(point),straightY=start.y+(hoop.y-start.y)*closest.t;if(closest.distance>Math.max(42,W*.12)||closest.t+.10<previous)return false;if(closest.t>.22&&closest.t<.78&&point.y<straightY-H*.075)hasLift=true;previous=Math.max(previous,closest.t)}
+  const tail=path[Math.max(0,path.length-4)],entry={x:end.x-tail.x,y:end.y-tail.y},verticalEntry=entry.y>Math.max(12,H*.015)&&Math.abs(entry.x)<=entry.y*.58;return hasLift&&verticalEntry&&previous>.80;
+}
+function arcImpactPoint(path,willScore){
+  const hoop=arcHoop();if(willScore)return hoop;
+  const end=path.at(-1),offset=Math.max(-W*.07,Math.min(W*.07,(end.x-hoop.x)*.25));return{x:hoop.x+offset,y:hoop.y-H*.045};
 }
 function beginArc(event){
   if(state.phase==='levelIntro'){begin();return}
@@ -260,11 +265,13 @@ function beginArc(event){
 function moveArc(event){if(state.mode!=='arc'||state.phase!=='arcDraw')return;const point=pointerPosition(event),last=state.arcPath.at(-1);if(!last||Math.hypot(point.x-last.x,point.y-last.y)>3)state.arcPath.push(point)}
 function releaseArc(event){
   if(state.mode!=='arc'||state.phase!=='arcDraw')return false;const point=pointerPosition(event),last=state.arcPath.at(-1);if(!last||Math.hypot(point.x-last.x,point.y-last.y)>2)state.arcPath.push(point);
-  if(validateArc(state.arcPath)){state.arcFlightPath=[...state.arcPath];state.arcFlightT=0;state.phase='arcFlight';swish()}else finishArcAttempt(false);return true;
+  state.arcWillScore=validateArc(state.arcPath);const impact=arcImpactPoint(state.arcPath,state.arcWillScore),flightPath=[...state.arcPath];
+  if(Math.hypot(flightPath.at(-1).x-impact.x,flightPath.at(-1).y-impact.y)>3)flightPath.push(impact);
+  state.arcFlightPath=flightPath;state.arcFlightT=0;state.phase='arcFlight';return true;
 }
 function reset(){
   const shuffledArcOrder=[...arcScenes.keys()].sort(()=>Math.random()-.5);
-  Object.assign(state,{score:state.mode==='full'&&state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,endlessShots:0,endlessMisses:0,endlessDifficulty:0,arcScene:0,arcOrder:state.mode==='arc'?shuffledArcOrder:state.arcOrder,arcAttempt:0,arcSuccesses:0,arcPath:[],arcFlightPath:[],arcFlightT:0});
+  Object.assign(state,{score:state.mode==='full'&&state.league===8888?state.best:0,streak:0,phase:'levelIntro',power:0,direction:1,shots:0,hits:0,level:1,levelTime:24,gameStarted:false,gameOverTime:0,message:'HOLD TO SHOOT',sub:'Find the moving sweet spot',finalRank:null,endlessShots:0,endlessMisses:0,endlessDifficulty:0,arcScene:0,arcOrder:state.mode==='arc'?shuffledArcOrder:state.arcOrder,arcAttempt:0,arcSuccesses:0,arcPath:[],arcFlightPath:[],arcFlightT:0,arcWillScore:false});
   if(state.mode==='arc'){const start=arcStart();state.spawnX=start.x/W;state.spawnY=start.y/H;configureDifficulty()}else randomizeShot();
 }
 async function syncBestScore(final=false){
@@ -352,7 +359,7 @@ function update(dt){
   if(state.phase==='arcFlight'){
     state.arcFlightT+=dt/.62;const path=state.arcFlightPath,position=path[Math.min(path.length-1,Math.floor(state.arcFlightT*(path.length-1)))];
     if(position)state.trail.push({x:position.x,y:position.y,life:1});
-    if(state.arcFlightT>=1)finishArcAttempt(true);
+    if(state.arcFlightT>=1){if(state.arcWillScore){swish();finishArcAttempt(true)}else{playClip(missAudio,.48,.98+Math.random()*.04);state.shake=3;finishArcAttempt(false)}}
   }
   if(state.phase==='swish'){
     state.swishT+=dt/.42;
